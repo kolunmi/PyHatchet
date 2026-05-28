@@ -1,0 +1,45 @@
+using Gtk 4.0;
+using Adw 1;
+using Foundry 1;
+using FoundryGtk 1;
+
+template $HatchetWindow: Adw.ApplicationWindow {
+  title: _("Hatchet");
+  default-width: 800;
+  default-height: 600;
+
+  content: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {
+      [end]
+      MenuButton {
+        primary: true;
+        icon-name: "open-menu-symbolic";
+        tooltip-text: _("Main Menu");
+        menu-model: primary_menu;
+      }
+    }
+
+    content: Adw.Bin content {
+    };
+  };
+}
+
+menu primary_menu {
+  section {
+    item {
+      label: _("_Preferences");
+      action: "app.preferences";
+    }
+
+    item {
+      label: _("_Keyboard Shortcuts");
+      action: "app.shortcuts";
+    }
+
+    item {
+      label: _("_About Hatchet");
+      action: "app.about";
+    }
+  }
+}

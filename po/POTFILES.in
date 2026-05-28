@@ -1,0 +1,8 @@
+# List of source files containing translatable strings.
+# Please keep this file sorted alphabetically.
+data/net.kolunmi.Hatchet.desktop.in
+data/net.kolunmi.Hatchet.metainfo.xml.in
+data/net.kolunmi.Hatchet.gschema.xml
+src/main.py
+src/window.py
+src/window.blp
