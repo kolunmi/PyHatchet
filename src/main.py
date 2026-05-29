@@ -18,6 +18,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import sys
+import asyncio
 import gi
 
 from gettext import gettext as _
@@ -29,6 +30,9 @@ gi.require_version('FoundryGtk', '1')
 gi.require_version('FoundryAdw', '1')
 
 from gi.repository import Gtk, Gio, Adw, Foundry, FoundryGtk, FoundryAdw
+from gi.events import GLibEventLoopPolicy
+
+from .context import HatchetContext
 from .window import HatchetWindow
 
 class HatchetApplication(Adw.Application):
@@ -38,9 +42,14 @@ class HatchetApplication(Adw.Application):
         super().__init__(application_id='net.kolunmi.Hatchet',
                          flags=Gio.ApplicationFlags.DEFAULT_FLAGS,
                          resource_base_path='/net/kolunmi/Hatchet')
+
         self.create_action('quit', lambda *_: self.quit(), ['<control>q'])
         self.create_action('about', self.on_about_action)
         self.create_action('preferences', self.on_preferences_action)
+
+        self.context = HatchetContext(
+            foundry=Foundry.FutureItem.new(Foundry.Context.new_for_user()),
+        )
 
     def do_activate(self):
         """Called when the application is activated.
@@ -50,7 +59,7 @@ class HatchetApplication(Adw.Application):
         """
         win = self.props.active_window
         if not win:
-            win = HatchetWindow(application=self)
+            win = HatchetWindow(application=self,context=self.context)
         win.present()
 
     def on_about_action(self, *args):
@@ -86,6 +95,9 @@ class HatchetApplication(Adw.Application):
 
 
 def main(version):
+    asyncio_policy = GLibEventLoopPolicy()
+    asyncio.set_event_loop_policy(asyncio_policy)
+
     Foundry.init().disown()
     FoundryGtk.gtk_init();
     FoundryAdw.adw_init();

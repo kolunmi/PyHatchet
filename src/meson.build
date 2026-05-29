@@ -39,6 +39,8 @@ configure_file(
 hatchet_sources = [
   '__init__.py',
   'main.py',
+  'util.py',
+  'context.py',
   'window.py',
 ]
 

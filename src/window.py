@@ -17,17 +17,29 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-from gi.repository import GObject, Gtk, Adw, Foundry, FoundryGtk, FoundryAdw
+import asyncio
+
+from gi.repository import GObject, Gio, Gtk, Adw, Dex, Foundry, FoundryGtk, FoundryAdw
+from .util import run_async, item_future
+from .context import HatchetContext
 
 @Gtk.Template(resource_path='/net/kolunmi/Hatchet/window.ui')
 class HatchetWindow(Adw.ApplicationWindow):
     __gtype_name__ = 'HatchetWindow'
 
+    context = GObject.Property(type=HatchetContext, default=None, flags=GObject.ParamFlags.READWRITE)
+
     content = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        run_async(self._init())
 
-        document = Foundry.TextDocument.new()
-        sourceview = Foundry.SourceView.new(document)
-        content.set_child(sourceview)
+    async def _init(self):
+        foundry = await item_future(self.context.foundry)
+        text_mgr = foundry.dup_text_manager()
+        document = await text_mgr.load(
+            Gio.File.new_for_path('/home/kol/hey.txt'),
+            Foundry.Operation.new(),
+            None,
+        ).to_asyncio()
