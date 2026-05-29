@@ -43,3 +43,6 @@ class HatchetWindow(Adw.ApplicationWindow):
             Foundry.Operation.new(),
             None,
         ).to_asyncio()
+
+        source_view = FoundryGtk.SourceView.new(document)
+        self.content.set_child(source_view)

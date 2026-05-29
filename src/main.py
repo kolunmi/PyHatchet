@@ -25,13 +25,15 @@ from gettext import gettext as _
 
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
+gi.require_version('Dex', '1')
 gi.require_version('Foundry', '1')
 gi.require_version('FoundryGtk', '1')
 gi.require_version('FoundryAdw', '1')
 
-from gi.repository import Gtk, Gio, Adw, Foundry, FoundryGtk, FoundryAdw
+from gi.repository import Gio, Gtk, Adw, Dex, Foundry, FoundryGtk, FoundryAdw, Peas
 from gi.events import GLibEventLoopPolicy
 
+from .util import run_async, item_future
 from .context import HatchetContext
 from .window import HatchetWindow
 
@@ -98,9 +100,12 @@ def main(version):
     asyncio_policy = GLibEventLoopPolicy()
     asyncio.set_event_loop_policy(asyncio_policy)
 
-    Foundry.init().disown()
+    Dex.init()
+    Gtk.init()
+    Adw.init()
     FoundryGtk.gtk_init();
     FoundryAdw.adw_init();
+    Foundry.init().disown()
 
     """The application's entry point."""
     app = HatchetApplication()
