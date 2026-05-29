@@ -90,13 +90,9 @@ class HatchetApplication(Adw.Application):
                 Foundry.Operation.new(),
                 None,
             ).to_asyncio()
-            window = self.get_active_window()
-            if window:
-                window.open_document(document)
-            else:
-                windows = self.get_windows()
-                if len(windows) > 0:
-                    windows[0].open_document(document)
+            win = self.choose_window()
+            if win:
+                win.open_document(document)
         run_async(action(self))
 
     def create_action(self, name, callback, params, shortcuts=None):
@@ -117,6 +113,16 @@ class HatchetApplication(Adw.Application):
         self.add_action(action)
         if shortcuts:
             self.set_accels_for_action(f"app.{name}", shortcuts)
+
+    def choose_window(self):
+        win = self.get_active_window()
+        if win:
+            return win
+        else:
+            windows = self.get_windows()
+            if len(windows) > 0:
+                return windows[0]
+
 
 
 def main(version):
