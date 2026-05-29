@@ -30,7 +30,7 @@ gi.require_version('Foundry', '1')
 gi.require_version('FoundryGtk', '1')
 gi.require_version('FoundryAdw', '1')
 
-from gi.repository import Gio, Gtk, Adw, Dex, Foundry, FoundryGtk, FoundryAdw, Peas
+from gi.repository import GLib, Gio, Gtk, Adw, Dex, Foundry, FoundryGtk, FoundryAdw, Peas
 from gi.events import GLibEventLoopPolicy
 
 from .util import run_async, item_future
@@ -45,9 +45,10 @@ class HatchetApplication(Adw.Application):
                          flags=Gio.ApplicationFlags.DEFAULT_FLAGS,
                          resource_base_path='/net/kolunmi/Hatchet')
 
-        self.create_action('quit', lambda *_: self.quit(), ['<control>q'])
-        self.create_action('about', self.on_about_action)
-        self.create_action('preferences', self.on_preferences_action)
+        self.create_action('quit', lambda *_: self.quit(), None, ['<control>q'])
+        self.create_action('about', self.on_about_action, None)
+        self.create_action('preferences', self.on_preferences_action, None)
+        self.create_action('open-document', self.on_open_document_action, "s")
 
         self.context = HatchetContext(
             foundry=Foundry.FutureItem.new(Foundry.Context.new_for_user()),
@@ -80,7 +81,25 @@ class HatchetApplication(Adw.Application):
         """Callback for the app.preferences action."""
         print('app.preferences action activated')
 
-    def create_action(self, name, callback, shortcuts=None):
+    def on_open_document_action(self, widget, params):
+        async def action(self):
+            foundry = await item_future(self.context.foundry)
+            text_mgr = foundry.dup_text_manager()
+            document = await text_mgr.load(
+                Gio.File.new_for_path(params.get_string()),
+                Foundry.Operation.new(),
+                None,
+            ).to_asyncio()
+            window = self.get_active_window()
+            if window:
+                window.open_document(document)
+            else:
+                windows = self.get_windows()
+                if len(windows) > 0:
+                    windows[0].open_document(document)
+        run_async(action(self))
+
+    def create_action(self, name, callback, params, shortcuts=None):
         """Add an application action.
 
         Args:
@@ -89,7 +108,11 @@ class HatchetApplication(Adw.Application):
               activated
             shortcuts: an optional list of accelerators
         """
-        action = Gio.SimpleAction.new(name, None)
+        if params:
+            variant_string = GLib.VariantType('s')
+        else:
+            variant_string = None
+        action = Gio.SimpleAction.new(name, variant_string)
         action.connect("activate", callback)
         self.add_action(action)
         if shortcuts:

@@ -18,7 +18,45 @@ template $HatchetWindow: Adw.ApplicationWindow {
       }
     }
 
-    content: Adw.Bin content {
+    content: Overlay {
+      child: Adw.Bin content {
+      };
+
+      [overlay]
+      Frame action_picker {
+        // visible: false;
+
+        margin-start: 10;
+        margin-end: 10;
+        margin-top: 10;
+        margin-bottom: 10;
+
+        halign: fill;
+        valign: center;
+
+        child: ScrolledWindow {
+          propagate-natural-height: true;
+
+          child: ListView {
+            model: SingleSelection picker_selection {
+            };
+            factory: BuilderListItemFactory {
+              template ListItem {
+                child: Label {
+                  xalign: 0.0;
+                  label: bind template.item as <StringObject>.string as <string>;
+                };
+              }
+            };
+            activate => $_picker_activated_cb();
+          };
+        };
+
+        styles [
+          "view",
+          "card",
+        ]
+      }
     };
   };
 }
