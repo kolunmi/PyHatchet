@@ -39,6 +39,7 @@ class HatchetPicker(Adw.Bin):
     )
 
     text_entry = Gtk.Template.Child()
+    list_view = Gtk.Template.Child()
     selection = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
@@ -62,12 +63,12 @@ class HatchetPicker(Adw.Bin):
     def action_next(self, action_name, params):
         pos = self.selection.props.selected
         pos = (pos + 1) % self.selection.props.n_items
-        self.selection.props.selected = pos
+        self.list_view.scroll_to(pos, Gtk.ListScrollFlags.SELECT, None)
 
     def action_prev(self, action_name, params):
         pos = self.selection.props.selected
         pos = (pos - 1) % self.selection.props.n_items
-        self.selection.props.selected = pos
+        self.list_view.scroll_to(pos, Gtk.ListScrollFlags.SELECT, None)
 
     def action_complete(self, action_name, params):
         pos = self.selection.props.selected

@@ -26,7 +26,7 @@ template $HatchetPicker: Adw.Bin {
     ScrolledWindow {
       propagate-natural-height: true;
 
-      child: ListView {
+      child: ListView list_view {
         model: SingleSelection selection {
         };
         factory: BuilderListItemFactory {
