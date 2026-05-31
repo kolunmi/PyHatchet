@@ -1,7 +1,7 @@
 .picker {
     padding: 10px;
     margin: 10px;
-    background-color: lighter(var(--card-bg-color));
+    background-color: lighter(var(--window-bg-color));
     border-radius: 10px;
     border-style: solid;
     border-color: var(--border-color);
