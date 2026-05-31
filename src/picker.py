@@ -48,6 +48,7 @@ class HatchetPicker(Adw.Bin):
         self.create_action(action_group, "next", self.action_next, None)
         self.create_action(action_group, "prev", self.action_prev, None)
         self.create_action(action_group, "complete", self.action_complete, None)
+        self.create_action(action_group, "cancel", self.action_cancel, None)
         self.insert_action_group("picker", action_group)
 
         shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.picker_shortcuts_model)
@@ -86,6 +87,11 @@ class HatchetPicker(Adw.Bin):
             new_text = string
         self.text_entry.props.text = new_text
         self.text_entry.set_position(len(new_text))
+
+    def action_cancel(self, action_cancel, params):
+        self.action = None
+        self.arg_hint = None
+        self.emit("selection-made", None)
 
     def create_action(self, group, name, callback, params):
         if params:
@@ -134,9 +140,8 @@ class HatchetPicker(Adw.Bin):
             return
 
         text = self.text_entry.get_text()
-
-        app = Gio.Application.get_default()
-        input = self.actions_model[pos].get_string()
+        item = self.actions_model[pos]
+        input = item.get_string()
 
         ret_object = None
         if self.arg_hint:
@@ -144,6 +149,7 @@ class HatchetPicker(Adw.Bin):
                 case Gio.File:
                     ret_object = Gio.File.new_for_path(Path(text, input))
         else:
+            app = Gio.Application.get_default()
             self.action = app.lookup_action(input)
             try:
                 self.arg_hint = self.action._arg_hint
