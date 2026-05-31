@@ -47,7 +47,7 @@ class HatchetPicker(Adw.Bin):
         action_group = Gio.SimpleActionGroup.new()
         self.create_action(action_group, "next", self.action_next, None)
         self.create_action(action_group, "prev", self.action_prev, None)
-        self.create_action(action_group, "complete", self.action_prev, None)
+        self.create_action(action_group, "complete", self.action_complete, None)
         self.insert_action_group("picker", action_group)
 
         shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.picker_shortcuts_model)
@@ -69,7 +69,23 @@ class HatchetPicker(Adw.Bin):
         self.selection.props.selected = pos
 
     def action_complete(self, action_name, params):
-        print('complete')
+        pos = self.selection.props.selected
+        if pos >= self.selection.props.n_items:
+            return
+        item = self.selection[pos]
+        string = item.get_string()
+        current_text = self.text_entry.props.text
+        if self.arg_hint:
+            match self.arg_hint:
+                case Gio.File:
+                    if len(current_text) > 0:
+                        new_text = str(Path(current_text, string))
+                    else:
+                        new_text = string
+        else:
+            new_text = string
+        self.text_entry.props.text = new_text
+        self.text_entry.set_position(len(new_text))
 
     def create_action(self, group, name, callback, params):
         if params:

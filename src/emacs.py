@@ -31,4 +31,4 @@ def bind_emacs_window(store):
 def bind_emacs_picker(store):
     add_key(store, '<primary>p', 'action(picker.prev)')
     add_key(store, '<primary>n', 'action(picker.next)')
-    add_key(store, '<primary>Tab', 'action(picker.complete)')
+    add_key(store, 'Tab', 'action(picker.complete)')
