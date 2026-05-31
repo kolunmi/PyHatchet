@@ -1,4 +1,4 @@
-# context.py
+# emacs.py
 #
 # Copyright 2026 kol
 #
@@ -17,15 +17,18 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-from gi.repository import GObject, Gio, Foundry
+from gi.repository import GObject, Gio, Gtk
 
-class HatchetContext(GObject.Object):
-    __gtype_name__ = 'HatchetContext'
+def add_key(store, trigger, action):
+    shortcut_trigger = Gtk.ShortcutTrigger.parse_string(trigger)
+    shortcut_action = Gtk.ShortcutAction.parse_string(action)
+    shortcut = Gtk.Shortcut(trigger=shortcut_trigger, action=shortcut_action)
+    store.append(shortcut)
 
-    window_shortcuts_model = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE)
-    picker_shortcuts_model = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE)
+def bind_emacs_window(store):
+    add_key(store, '<alt>x', 'action(win.open-action-picker)')
 
-    foundry = GObject.Property(type=Foundry.FutureItem, default=None, flags=GObject.ParamFlags.READWRITE)
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+def bind_emacs_picker(store):
+    add_key(store, '<primary>p', 'action(picker.prev)')
+    add_key(store, '<primary>n', 'action(picker.next)')
+    add_key(store, '<primary>Tab', 'action(picker.complete)')

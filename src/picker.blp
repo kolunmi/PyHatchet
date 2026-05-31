@@ -13,6 +13,7 @@ template $HatchetPicker: Adw.Bin {
 
       Text text_entry {
         hexpand: true;
+        map => $_text_map_cb();
         changed => $_text_changed_cb();
         activate => $_text_activated_cb();
       }

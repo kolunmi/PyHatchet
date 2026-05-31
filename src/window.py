@@ -31,17 +31,47 @@ class HatchetWindow(Adw.ApplicationWindow):
     context = GObject.Property(type=HatchetContext, default=None, flags=GObject.ParamFlags.READWRITE)
 
     content = Gtk.Template.Child()
-    picker = Gtk.Template.Child()
+    overlay = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+        action_group = Gio.SimpleActionGroup.new()
+        self.create_action(action_group, "open-action-picker", self.action_open_action_picker, None)
+        self.insert_action_group("win", action_group)
+
+        shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.window_shortcuts_model)
+        self.add_controller(shortcut_controller)
+
+        self.picker = None
+
+    def action_open_action_picker(self, action_name, params):
+        if self.picker:
+            return
+        picker = HatchetPicker(context=self.context)
+        picker.halign = Gtk.Align.FILL
+        picker.valign = Gtk.Align.END
+        picker.connect("selection-made", self.picker_selection_made_cb)
+        self.overlay.add_overlay(picker)
+        self.picker = picker
+
+    def picker_selection_made_cb(self, ret_object, picker):
+        if not self.picker:
+            return
+        self.overlay.remove_overlay(self.picker)
+        self.picker = None
+
+    def create_action(self, group, name, callback, params):
+        if params:
+            variant_string = GLib.VariantType(params)
+        else:
+            variant_string = None
+        action = Gio.SimpleAction.new(name, variant_string)
+        action.connect("activate", callback)
+        group.add_action(action)
 
     def open_document(self, document):
         source_view = FoundryGtk.SourceView.new(document)
         scrolled_window = Gtk.ScrolledWindow.new()
         scrolled_window.set_child(source_view)
         self.content.set_child(scrolled_window)
-
-    @Gtk.Template.Callback()
-    def _picker_selection_made_cb(self, ret_object, picker):
-        self.picker.props.visible = False

@@ -44,6 +44,7 @@ hatchet_sources = [
   'context.py',
   'window.py',
   'picker.py',
+  'emacs.py',
 ]
 
 install_data(hatchet_sources, install_dir: moduledir)

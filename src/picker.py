@@ -44,9 +44,41 @@ class HatchetPicker(Adw.Bin):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+        action_group = Gio.SimpleActionGroup.new()
+        self.create_action(action_group, "next", self.action_next, None)
+        self.create_action(action_group, "prev", self.action_prev, None)
+        self.create_action(action_group, "complete", self.action_prev, None)
+        self.insert_action_group("picker", action_group)
+
+        shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.picker_shortcuts_model)
+        self.add_controller(shortcut_controller)
+
         self.action = None
         self.arg_hint = None
         self._build_selection()
+
+
+    def action_next(self, action_name, params):
+        pos = self.selection.props.selected
+        pos = (pos + 1) % self.selection.props.n_items
+        self.selection.props.selected = pos
+
+    def action_prev(self, action_name, params):
+        pos = self.selection.props.selected
+        pos = (pos - 1) % self.selection.props.n_items
+        self.selection.props.selected = pos
+
+    def action_complete(self, action_name, params):
+        print('complete')
+
+    def create_action(self, group, name, callback, params):
+        if params:
+            variant_string = GLib.VariantType(params)
+        else:
+            variant_string = None
+        action = Gio.SimpleAction.new(name, variant_string)
+        action.connect("activate", callback)
+        group.add_action(action)
 
     def _build_actions(self):
         app = Gio.Application.get_default()
@@ -123,6 +155,10 @@ class HatchetPicker(Adw.Bin):
     @Gtk.Template.Callback()
     def _text_activated_cb(self, text):
         self._select(self.selection.props.selected)
+
+    @Gtk.Template.Callback()
+    def _text_map_cb(self, text):
+        self.text_entry.grab_focus()
 
     @Gtk.Template.Callback()
     def _activated_cb(self, list_view, pos):
