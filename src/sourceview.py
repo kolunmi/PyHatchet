@@ -19,7 +19,7 @@
 
 import asyncio
 
-from gi.repository import GLib, GObject, Gio, Gtk, Adw, Dex, Foundry, FoundryGtk, FoundryAdw
+from gi.repository import GLib, GObject, Gio, Gtk, GtkSource, Adw, Dex, Foundry, FoundryGtk, FoundryAdw
 from .util import run_async, item_future
 from .context import HatchetContext
 
@@ -45,6 +45,13 @@ class HatchetSourceView(Adw.Bin):
 
         shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.sourceview_shortcuts_model)
         self.add_controller(shortcut_controller)
+
+        self.style_mgr = Adw.StyleManager.get_default()
+        self.style_mgr.connect("notify::dark", self._dark_mode_changed_cb)
+
+    def do_dispose(self):
+        self.style_mgr.disconnect_by_func("notify::dark", self._dark_mode_changed_cb)
+        super().do_dispose()
 
     def action_prev_line(self, action_name, params):
         if not self.sourceview:
@@ -109,6 +116,22 @@ class HatchetSourceView(Adw.Bin):
         action.connect("activate", callback)
         group.add_action(action)
 
+    def _dark_mode_changed_cb(self, pspec, style_manager):
+        self._style_sourceview()
+
+    def _style_sourceview(self):
+        if not self.sourceview or not self.sourceview.props.buffer:
+            return
+
+        if self.style_mgr.props.dark:
+            id = "Adwaita-dark"
+        else:
+            id = "Adwaita";
+
+        style_scheme_mgr = GtkSource.StyleSchemeManager.get_default()
+        scheme = style_scheme_mgr.get_scheme(id)
+        self.sourceview.props.buffer.props.style_scheme = scheme
+
     def do_grab_focus(self):
         if not self.sourceview:
             return
@@ -117,3 +140,4 @@ class HatchetSourceView(Adw.Bin):
     def open_document(self, document):
         self.sourceview = FoundryGtk.SourceView.new(document)
         self.content.set_child(self.sourceview)
+        self._style_sourceview()
