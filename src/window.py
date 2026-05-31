@@ -23,6 +23,7 @@ from gi.repository import GLib, GObject, Gio, Gtk, Adw, Dex, Foundry, FoundryGtk
 from .util import run_async, item_future
 from .context import HatchetContext
 from .picker import HatchetPicker
+from .sourceview import HatchetSourceView
 
 @Gtk.Template(resource_path='/net/kolunmi/Hatchet/window.ui')
 class HatchetWindow(Adw.ApplicationWindow):
@@ -30,7 +31,6 @@ class HatchetWindow(Adw.ApplicationWindow):
 
     context = GObject.Property(type=HatchetContext, default=None, flags=GObject.ParamFlags.READWRITE)
 
-    content = Gtk.Template.Child()
     overlay = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
@@ -42,6 +42,9 @@ class HatchetWindow(Adw.ApplicationWindow):
 
         shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.window_shortcuts_model)
         self.add_controller(shortcut_controller)
+
+        self.sourceview = HatchetSourceView(context=self.context)
+        self.overlay.set_child(self.sourceview)
 
         self.picker = None
 
@@ -71,7 +74,5 @@ class HatchetWindow(Adw.ApplicationWindow):
         group.add_action(action)
 
     def open_document(self, document):
-        source_view = FoundryGtk.SourceView.new(document)
-        scrolled_window = Gtk.ScrolledWindow.new()
-        scrolled_window.set_child(source_view)
-        self.content.set_child(scrolled_window)
+        self.sourceview.open_document(document)
+        self.sourceview.grab_focus()

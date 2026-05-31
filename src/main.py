@@ -36,7 +36,7 @@ from gi.events import GLibEventLoopPolicy
 from .util import run_async, item_future
 from .context import HatchetContext
 from .window import HatchetWindow
-from .emacs import bind_emacs_window, bind_emacs_picker
+from .emacs import bind_emacs_window, bind_emacs_picker, bind_emacs_sourceview
 
 class HatchetApplication(Adw.Application):
     """The main application singleton class."""
@@ -57,9 +57,13 @@ class HatchetApplication(Adw.Application):
         picker_shortcuts_model = Gio.ListStore.new(Gtk.Shortcut)
         bind_emacs_picker(picker_shortcuts_model);
 
+        sourceview_shortcuts_model = Gio.ListStore.new(Gtk.Shortcut)
+        bind_emacs_sourceview(sourceview_shortcuts_model);
+
         self.context = HatchetContext(
             window_shortcuts_model=window_shortcuts_model,
             picker_shortcuts_model=picker_shortcuts_model,
+            sourceview_shortcuts_model=sourceview_shortcuts_model,
             foundry=Foundry.FutureItem.new(Foundry.Context.new_for_user()),
         )
 

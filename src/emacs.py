@@ -34,3 +34,11 @@ def bind_emacs_picker(store):
     add_key(store, 'Tab', 'action(picker.complete)')
     add_key(store, '<primary>g', 'action(picker.cancel)')
     add_key(store, 'Escape', 'action(picker.cancel)')
+
+def bind_emacs_sourceview(store):
+    add_key(store, '<primary>p', 'action(sourceview.prev-line)')
+    add_key(store, '<primary>n', 'action(sourceview.next-line)')
+    add_key(store, '<primary>b', 'action(sourceview.prev-char)')
+    add_key(store, '<primary>f', 'action(sourceview.next-char)')
+    add_key(store, '<alt>b', 'action(sourceview.prev-word)')
+    add_key(store, '<alt>f', 'action(sourceview.next-word)')

@@ -24,6 +24,7 @@ class HatchetContext(GObject.Object):
 
     window_shortcuts_model = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE)
     picker_shortcuts_model = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE)
+    sourceview_shortcuts_model = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE)
 
     foundry = GObject.Property(type=Foundry.FutureItem, default=None, flags=GObject.ParamFlags.READWRITE)
 
