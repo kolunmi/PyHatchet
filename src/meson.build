@@ -6,6 +6,7 @@ blueprints = custom_target('blueprints',
   input: files(
     'shortcuts-dialog.blp',
     'window.blp',
+    'picker.blp',
   ),
   output: '.',
   command: [find_program('blueprint-compiler'), 'batch-compile', '--minify', '@OUTPUT@', '@CURRENT_SOURCE_DIR@', '@INPUT@'],
@@ -42,6 +43,7 @@ hatchet_sources = [
   'util.py',
   'context.py',
   'window.py',
+  'picker.py',
 ]
 
 install_data(hatchet_sources, install_dir: moduledir)

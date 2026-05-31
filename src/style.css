@@ -1,0 +1,14 @@
+.picker {
+    padding: 10px;
+    margin: 10px;
+    background-color: lighter(var(--card-bg-color));
+    border-radius: 10px;
+    border-style: solid;
+    border-color: var(--border-color);
+    box-shadow: 0 0 3px 1px black;
+}
+
+.picker text {
+    font-size: larger;
+    font-family: monospace;
+}

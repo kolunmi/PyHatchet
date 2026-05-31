@@ -45,10 +45,10 @@ class HatchetApplication(Adw.Application):
                          flags=Gio.ApplicationFlags.DEFAULT_FLAGS,
                          resource_base_path='/net/kolunmi/Hatchet')
 
-        self.create_action('quit', lambda *_: self.quit(), None, ['<control>q'])
+        self.create_action('quit', lambda *_: self.quit(), None, shortcuts=['<control>q'])
         self.create_action('about', self.on_about_action, None)
         self.create_action('preferences', self.on_preferences_action, None)
-        self.create_action('open-document', self.on_open_document_action, "s")
+        self.create_action('open-document', self.on_open_document_action, "s", arg_hint=Gio.File)
 
         self.context = HatchetContext(
             foundry=Foundry.FutureItem.new(Foundry.Context.new_for_user()),
@@ -95,7 +95,7 @@ class HatchetApplication(Adw.Application):
                 win.open_document(document)
         run_async(action(self))
 
-    def create_action(self, name, callback, params, shortcuts=None):
+    def create_action(self, name, callback, params, shortcuts=None, arg_hint=None):
         """Add an application action.
 
         Args:
@@ -105,7 +105,7 @@ class HatchetApplication(Adw.Application):
             shortcuts: an optional list of accelerators
         """
         if params:
-            variant_string = GLib.VariantType('s')
+            variant_string = GLib.VariantType(params)
         else:
             variant_string = None
         action = Gio.SimpleAction.new(name, variant_string)
@@ -113,6 +113,7 @@ class HatchetApplication(Adw.Application):
         self.add_action(action)
         if shortcuts:
             self.set_accels_for_action(f"app.{name}", shortcuts)
+        action._arg_hint = arg_hint
 
     def choose_window(self):
         win = self.get_active_window()

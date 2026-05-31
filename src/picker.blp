@@ -1,0 +1,46 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $HatchetPicker: Adw.Bin {
+  styles ["picker"]
+
+  child: Box {
+    orientation: vertical;
+    spacing: 2;
+
+    Box {
+      orientation: horizontal;
+
+      Text text_entry {
+        hexpand: true;
+        changed => $_text_changed_cb();
+        activate => $_text_activated_cb();
+      }
+    }
+
+    Separator {
+      orientation: horizontal;
+    }
+
+    ScrolledWindow {
+      propagate-natural-height: true;
+
+      child: ListView {
+        model: SingleSelection selection {
+        };
+        factory: BuilderListItemFactory {
+          template ListItem {
+            child: Label {
+              xalign: 0.0;
+              label: bind template.item as <StringObject>.string as <string>;
+            };
+          }
+        };
+        activate => $_activated_cb();
+        styles [
+          "navigation-sidebar",
+        ]
+      };
+    }
+  };
+}
