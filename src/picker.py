@@ -124,12 +124,12 @@ class HatchetPicker(Adw.Bin):
         is_dir = path.is_dir()
 
         try:
-            files = os.listdir(path)
-        except FileNotFoundError:
-            try:
+            if is_dir:
+                files = os.listdir(path)
+            else:
                 files = os.listdir(path.parent)
-            except Exception:
-                files = None
+        except FileNotFoundError:
+            files = None
         except PermissionError:
             files = None
         except NotADirectoryError:
@@ -141,9 +141,10 @@ class HatchetPicker(Adw.Bin):
            else:
                filtered = []
                name_casefolded = path.name.casefold()
-               for f in files:
-                   if name_casefolded == f or name_casefolded in f.casefold():
-                       filtered.append(f)
+               for file in files:
+                   file_casefolded = file.casefold()
+                   if name_casefolded in file_casefolded:
+                       filtered.append(file)
         else:
             filtered = []
 
