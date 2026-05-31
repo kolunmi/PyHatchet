@@ -109,6 +109,11 @@ class HatchetSourceView(Adw.Bin):
         action.connect("activate", callback)
         group.add_action(action)
 
+    def do_grab_focus(self):
+        if not self.sourceview:
+            return
+        self.sourceview.grab_focus()
+
     def open_document(self, document):
         self.sourceview = FoundryGtk.SourceView.new(document)
         self.content.set_child(self.sourceview)
