@@ -42,3 +42,5 @@ def bind_emacs_sourceview(store):
     add_key(store, '<primary>f', 'action(sourceview.next-char)')
     add_key(store, '<alt>b', 'action(sourceview.prev-word)')
     add_key(store, '<alt>f', 'action(sourceview.next-word)')
+    add_key(store, '<primary>a', 'action(sourceview.beginning-of-line)')
+    add_key(store, '<primary>e', 'action(sourceview.end-of-line)')

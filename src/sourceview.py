@@ -41,9 +41,12 @@ class HatchetSourceView(Adw.Bin):
         self.create_action(action_group, "next-char", self.action_next_char, None)
         self.create_action(action_group, "prev-word", self.action_prev_word, None)
         self.create_action(action_group, "next-word", self.action_next_word, None)
+        self.create_action(action_group, "beginning-of-line", self.action_beginning_of_line, None)
+        self.create_action(action_group, "end-of-line", self.action_end_of_line, None)
         self.insert_action_group("sourceview", action_group)
 
         shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.sourceview_shortcuts_model)
+        shortcut_controller.props.propagation_phase = Gtk.PropagationPhase.CAPTURE
         self.add_controller(shortcut_controller)
 
         self.style_mgr = Adw.StyleManager.get_default()
@@ -61,6 +64,7 @@ class HatchetSourceView(Adw.Bin):
         iter = buffer.get_iter_at_mark(mark)
         iter.backward_visible_line()
         buffer.place_cursor(iter)
+        self.sourceview.jump_to_iter(iter, 0.0, False, 0.0, 0.0)
 
     def action_next_line(self, action_name, params):
         if not self.sourceview:
@@ -70,6 +74,7 @@ class HatchetSourceView(Adw.Bin):
         iter = buffer.get_iter_at_mark(mark)
         iter.forward_visible_line()
         buffer.place_cursor(iter)
+        self.sourceview.jump_to_iter(iter, 0.0, False, 0.0, 0.0)
 
     def action_prev_char(self, action_name, params):
         if not self.sourceview:
@@ -79,6 +84,7 @@ class HatchetSourceView(Adw.Bin):
         iter = buffer.get_iter_at_mark(mark)
         iter.backward_visible_cursor_position()
         buffer.place_cursor(iter)
+        self.sourceview.jump_to_iter(iter, 0.0, False, 0.0, 0.0)
 
     def action_next_char(self, action_name, params):
         if not self.sourceview:
@@ -88,6 +94,7 @@ class HatchetSourceView(Adw.Bin):
         iter = buffer.get_iter_at_mark(mark)
         iter.forward_visible_cursor_position()
         buffer.place_cursor(iter)
+        self.sourceview.jump_to_iter(iter, 0.0, False, 0.0, 0.0)
 
     def action_prev_word(self, action_name, params):
         if not self.sourceview:
@@ -97,6 +104,7 @@ class HatchetSourceView(Adw.Bin):
         iter = buffer.get_iter_at_mark(mark)
         iter.backward_visible_word_start()
         buffer.place_cursor(iter)
+        self.sourceview.jump_to_iter(iter, 0.0, False, 0.0, 0.0)
 
     def action_next_word(self, action_name, params):
         if not self.sourceview:
@@ -106,6 +114,27 @@ class HatchetSourceView(Adw.Bin):
         iter = buffer.get_iter_at_mark(mark)
         iter.forward_visible_word_end()
         buffer.place_cursor(iter)
+        self.sourceview.jump_to_iter(iter, 0.0, False, 0.0, 0.0)
+
+    def action_beginning_of_line(self, action_name, params):
+        if not self.sourceview:
+            return
+        buffer = self.sourceview.props.buffer
+        mark = buffer.get_insert()
+        iter = buffer.get_iter_at_mark(mark)
+        iter.set_line_index(0)
+        buffer.place_cursor(iter)
+        self.sourceview.jump_to_iter(iter, 0.0, False, 0.0, 0.0)
+
+    def action_end_of_line(self, action_name, params):
+        if not self.sourceview:
+            return
+        buffer = self.sourceview.props.buffer
+        mark = buffer.get_insert()
+        iter = buffer.get_iter_at_mark(mark)
+        iter.forward_to_line_end()
+        buffer.place_cursor(iter)
+        self.sourceview.jump_to_iter(iter, 0.0, False, 0.0, 0.0)
 
     def create_action(self, group, name, callback, params):
         if params:

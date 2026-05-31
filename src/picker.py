@@ -53,6 +53,7 @@ class HatchetPicker(Adw.Bin):
         self.insert_action_group("picker", action_group)
 
         shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.picker_shortcuts_model)
+        shortcut_controller.props.propagation_phase = Gtk.PropagationPhase.CAPTURE
         self.add_controller(shortcut_controller)
 
         self.action = None
