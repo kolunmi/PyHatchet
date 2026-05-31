@@ -56,8 +56,8 @@ class HatchetPicker(Adw.Bin):
 
         self.action = None
         self.arg_hint = None
+        self.cwd = None
         self._build_selection()
-
 
     def action_next(self, action_name, params):
         pos = self.selection.props.selected
@@ -80,7 +80,11 @@ class HatchetPicker(Adw.Bin):
             match self.arg_hint:
                 case Gio.File:
                     if len(current_text) > 0:
-                        new_text = str(Path(current_text, string))
+                        new_path = Path(self.cwd, string)
+                        if new_path.is_dir():
+                            new_text = str(new_path) + '/'
+                        else:
+                            new_text = str(new_path)
                     else:
                         new_text = string
         else:
@@ -105,27 +109,47 @@ class HatchetPicker(Adw.Bin):
     def _build_actions(self):
         app = Gio.Application.get_default()
         actions = app.list_actions()
-        self.actions_model = Gtk.StringList.new(actions)
-        self.selection.set_model(self.actions_model)
+        self.selection.set_model(Gtk.StringList.new(actions))
 
     def _build_files(self):
-        text = self.text_entry.get_text()
-        path = Path(text)
+        text = self.text_entry.props.text
+        if len(text) == 0:
+            text = str(Path.cwd()) + '/'
+            self.text_entry.props.text = text
+            self.text_entry.set_position(len(text))
+
+        path = Path(text).expanduser()
+        is_dir = path.is_dir()
 
         try:
             files = os.listdir(path)
         except FileNotFoundError:
             try:
                 files = os.listdir(path.parent)
-            except:
+            except Exception:
                 files = None
         except PermissionError:
             files = None
         except NotADirectoryError:
             files = None
 
-        self.actions_model = Gtk.StringList.new(files)
-        self.selection.set_model(self.actions_model)
+        if files:
+           if is_dir:
+               filtered = sorted(files)
+           else:
+               filtered = []
+               name_casefolded = path.name.casefold()
+               for f in files:
+                   if name_casefolded == f or name_casefolded in f.casefold():
+                       filtered.append(f)
+        else:
+            filtered = []
+
+        self.selection.set_model(Gtk.StringList.new(filtered))
+        if is_dir:
+            self.cwd = path
+        else:
+            self.cwd = path.parent
 
     def _build_selection(self):
         if self.arg_hint:
@@ -140,24 +164,24 @@ class HatchetPicker(Adw.Bin):
             return
 
         text = self.text_entry.get_text()
-        item = self.actions_model[pos]
+        item = self.selection[pos]
         input = item.get_string()
 
         ret_object = None
         if self.arg_hint:
             match self.arg_hint:
                 case Gio.File:
-                    ret_object = Gio.File.new_for_path(Path(text, input))
+                    ret_object = Gio.File.new_for_path(Path(self.cwd, input))
         else:
             app = Gio.Application.get_default()
             self.action = app.lookup_action(input)
             try:
                 self.arg_hint = self.action._arg_hint
-                if self.arg_hint:
-                    self._build_selection()
-                    return
             except Exception:
-                pass
+                self.arg_hint = None
+            if self.arg_hint:
+                self._build_selection()
+                return
 
         if self.action:
             if isinstance(ret_object, Gio.File):
