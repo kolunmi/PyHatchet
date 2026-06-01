@@ -109,9 +109,21 @@ class HatchetPicker(Adw.Bin):
         group.add_action(action)
 
     def _build_actions(self):
+        text = self.text_entry.props.text
+
         app = Gio.Application.get_default()
         actions = app.list_actions()
-        self.selection.set_model(Gtk.StringList.new(actions))
+
+        if len(text) > 0:
+            filtered = []
+            for action in actions:
+                if text in action:
+                    filtered.append(action)
+            filtered.sort(key=lambda x: len(x))
+        else:
+            filtered = sorted(actions)
+
+        self.selection.set_model(Gtk.StringList.new(filtered))
 
     def _build_files(self):
         text = self.text_entry.props.text
@@ -145,6 +157,7 @@ class HatchetPicker(Adw.Bin):
                    file_casefolded = file.casefold()
                    if name_casefolded in file_casefolded:
                        filtered.append(file)
+               filtered.sort(key=lambda x: len(x))
         else:
             filtered = []
 
@@ -183,6 +196,7 @@ class HatchetPicker(Adw.Bin):
             except Exception:
                 self.arg_hint = None
             if self.arg_hint:
+                self.text_entry.props.text = ""
                 self._build_selection()
                 return
 
