@@ -59,9 +59,15 @@ class HatchetWindow(Adw.ApplicationWindow):
     def action_open_action_picker(self, action_name, params):
         if self.picker:
             return
-        picker = HatchetPicker(context=self.context)
-        picker.props.halign = Gtk.Align.FILL
-        picker.props.valign = Gtk.Align.START
+        picker = HatchetPicker(
+            context=self.context,
+            halign=Gtk.Align.FILL,
+            valign=Gtk.Align.START,
+            margin_start=30,
+            margin_end=30,
+            margin_top=30,
+            margin_bottom=30,
+        )
         picker.connect("selection-made", self.picker_selection_made_cb)
         self.overlay.add_overlay(picker)
         self.picker = picker

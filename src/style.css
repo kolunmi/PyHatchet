@@ -1,6 +1,5 @@
 .picker {
     padding: 8px;
-    margin: 8px;
     background-color: lighter(var(--window-bg-color));
     border-radius: 8px;
     border-style: solid;
