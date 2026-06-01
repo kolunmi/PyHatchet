@@ -38,6 +38,7 @@ def bind_emacs_picker(store):
     add_key(store, 'Escape', 'action(picker.cancel)')
 
 def bind_emacs_sourceview(store):
+    add_key(store, '<primary>g', 'action(sourceview.cancel)')
     add_key(store, '<primary>p', 'action(sourceview.prev-line)')
     add_key(store, '<primary>n', 'action(sourceview.next-line)')
     add_key(store, '<primary>b', 'action(sourceview.prev-char)')
@@ -50,3 +51,4 @@ def bind_emacs_sourceview(store):
     add_key(store, '<alt>BackSpace', 'action(sourceview.backward-kill-word)')
     add_key(store, '<primary><shift>BackSpace', 'action(sourceview.kill-line)')
     add_key(store, '<primary>k', 'action(sourceview.kill-line-rest)')
+    add_key(store, '<primary>space', 'action(sourceview.activate-mark-region)')

@@ -35,6 +35,7 @@ class HatchetSourceView(Adw.Bin):
         super().__init__(**kwargs)
 
         action_group = Gio.SimpleActionGroup.new()
+        self.create_action(action_group, "cancel", self.action_cancel, None)
         self.create_action(action_group, "prev-line", self.action_prev_line, None)
         self.create_action(action_group, "next-line", self.action_next_line, None)
         self.create_action(action_group, "prev-char", self.action_prev_char, None)
@@ -47,6 +48,7 @@ class HatchetSourceView(Adw.Bin):
         self.create_action(action_group, "backward-kill-word", self.action_backward_kill_word, None)
         self.create_action(action_group, "kill-line", self.action_kill_line, None)
         self.create_action(action_group, "kill-line-rest", self.action_kill_line_rest, None)
+        self.create_action(action_group, "activate-mark-region", self.action_activate_mark_region, None)
         self.insert_action_group("sourceview", action_group)
 
         shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.sourceview_shortcuts_model)
@@ -56,9 +58,23 @@ class HatchetSourceView(Adw.Bin):
         self.style_mgr = Adw.StyleManager.get_default()
         self.style_mgr.connect("notify::dark", self._dark_mode_changed_cb)
 
+        self.buffer = None
+        self.last_insert_iter = None
+        self.mark_region_iter = None
+
     def do_dispose(self):
         self.style_mgr.disconnect_by_func("notify::dark", self._dark_mode_changed_cb)
         super().do_dispose()
+
+    def action_cancel(self, action_name, params):
+        if not self.sourceview:
+            return
+        buffer = self.sourceview.props.buffer
+        insert = buffer.get_insert()
+        bound = buffer.get_selection_bound()
+        insert_iter = buffer.get_iter_at_mark(insert)
+        buffer.move_mark(bound, insert_iter)
+        self.mark_region_iter = None
 
     def action_prev_line(self, action_name, params):
         if not self.sourceview:
@@ -181,6 +197,16 @@ class HatchetSourceView(Adw.Bin):
         end.forward_to_line_end()
         buffer.delete_interactive(start, end, True)
 
+    def action_activate_mark_region(self, action_name, params):
+        if not self.sourceview:
+            return
+        buffer = self.sourceview.props.buffer
+        insert = buffer.get_insert()
+        bound = buffer.get_selection_bound()
+        insert_iter = buffer.get_iter_at_mark(insert)
+        buffer.move_mark(bound, insert_iter)
+        self.mark_region_iter = insert_iter
+
     def create_action(self, group, name, callback, params):
         if params:
             variant_string = GLib.VariantType(params)
@@ -190,8 +216,18 @@ class HatchetSourceView(Adw.Bin):
         action.connect("activate", callback)
         group.add_action(action)
 
-    def _dark_mode_changed_cb(self, pspec, style_manager):
+    def _dark_mode_changed_cb(self, style_manager, pspec):
         self._style_sourceview()
+
+    def _cursor_position_change_cb(self, buffer, pspec):
+        insert = buffer.get_insert()
+
+        if self.last_insert_iter:
+            if self.mark_region_iter:
+                bound = buffer.get_selection_bound()
+                buffer.move_mark(bound, self.mark_region_iter)
+
+        self.last_insert_iter = buffer.get_iter_at_mark(insert)
 
     def _style_sourceview(self):
         if not self.sourceview or not self.sourceview.props.buffer:
@@ -212,6 +248,14 @@ class HatchetSourceView(Adw.Bin):
         self.sourceview.grab_focus()
 
     def open_document(self, document):
+        if self.buffer:
+            self.buffer.disconnect_by_func(self._cursor_position_change_cb)
+        self.buffer = None
+        self.last_insert_iter = None
+        self.mark_region_iter = None
+
         self.sourceview = FoundryGtk.SourceView.new(document)
-        self.content.set_child(self.sourceview)
+        self.buffer = self.sourceview.props.buffer
+        self.buffer.connect("notify::cursor-position", self._cursor_position_change_cb)
         self._style_sourceview()
+        self.content.set_child(self.sourceview)
