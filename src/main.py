@@ -62,11 +62,16 @@ class HatchetApplication(Adw.Application):
         sourceview_shortcuts_model = Gio.ListStore.new(Gtk.Shortcut)
         bind_emacs_sourceview(sourceview_shortcuts_model);
 
+        user_foundry = Foundry.FutureItem.new(Foundry.Context.new_for_user())
+        foundrys = Gio.ListStore.new(Foundry.FutureItem)
+        foundrys.append(user_foundry)
+
         self.context = HatchetContext(
             window_shortcuts_model=window_shortcuts_model,
             picker_shortcuts_model=picker_shortcuts_model,
             sourceview_shortcuts_model=sourceview_shortcuts_model,
-            foundry=Foundry.FutureItem.new(Foundry.Context.new_for_user()),
+            user_foundry=user_foundry,
+            foundrys=foundrys,
         )
 
     def do_activate(self):
@@ -97,12 +102,13 @@ class HatchetApplication(Adw.Application):
         print('app.preferences action activated')
 
     def on_open_document_action(self, widget, params):
+        path = params.get_string()
         async def action(self):
-            foundry = await item_future(self.context.foundry)
+            foundry = await self.context.get_foundry_for_path(path)
             text_mgr = foundry.dup_text_manager()
             try:
                 document = await text_mgr.load(
-                    Gio.File.new_for_path(params.get_string()),
+                    Gio.File.new_for_path(path),
                     Foundry.Operation.new(),
                     None,
                 ).to_asyncio()
@@ -114,12 +120,13 @@ class HatchetApplication(Adw.Application):
         run_async(action(self))
 
     def on_save_document_action(self, widget, params):
+        path = params.get_string()
         async def action(self):
-            foundry = await item_future(self.context.foundry)
+            foundry = await self.context.get_foundry_for_path(path)
             text_mgr = foundry.dup_text_manager()
             try:
                 document = await text_mgr.load(
-                    Gio.File.new_for_path(params.get_string()),
+                    Gio.File.new_for_path(path),
                     Foundry.Operation.new(),
                     None,
                 ).to_asyncio()

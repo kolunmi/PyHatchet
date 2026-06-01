@@ -185,9 +185,7 @@ class HatchetPicker(Adw.Bin):
         self.selection.props.model = None
 
         async def routine(self):
-            foundry = await item_future(self.context.foundry)
-            text_mgr = foundry.dup_text_manager()
-            documents = text_mgr.list_documents()
+            documents = await self.context.list_documents()
             text = self.text_entry.props.text.casefold()
             filtered = []
             for document in documents:
