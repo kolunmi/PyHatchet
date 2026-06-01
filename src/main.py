@@ -51,6 +51,7 @@ class HatchetApplication(Adw.Application):
         self.create_action('preferences', self.on_preferences_action, None)
         self.create_action('open-document', self.on_open_document_action, "s", arg_hint=Gio.File)
         self.create_action('switch-document', self.on_open_document_action, "s", arg_hint=Foundry.TextDocument)
+        self.create_action('save-document', self.on_save_document_action, "s", arg_hint=Foundry.TextDocument)
 
         window_shortcuts_model = Gio.ListStore.new(Gtk.Shortcut)
         bind_emacs_window(window_shortcuts_model);
@@ -110,6 +111,21 @@ class HatchetApplication(Adw.Application):
                     win.open_document(document)
             except GLib.Error as err:
                 self.show_error("Failed to open document", str(err))
+        run_async(action(self))
+
+    def on_save_document_action(self, widget, params):
+        async def action(self):
+            foundry = await item_future(self.context.foundry)
+            text_mgr = foundry.dup_text_manager()
+            try:
+                document = await text_mgr.load(
+                    Gio.File.new_for_path(params.get_string()),
+                    Foundry.Operation.new(),
+                    None,
+                ).to_asyncio()
+                await document.save(Foundry.Operation.new()).to_asyncio()
+            except GLib.Error as err:
+                self.show_error("Failed to save document", str(err))
         run_async(action(self))
 
     def create_action(self, name, callback, params, shortcuts=None, arg_hint=None):
