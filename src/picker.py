@@ -49,6 +49,7 @@ class HatchetPicker(Adw.Bin):
         self.create_action(action_group, "next", self.action_next, None)
         self.create_action(action_group, "prev", self.action_prev, None)
         self.create_action(action_group, "complete", self.action_complete, None)
+        self.create_action(action_group, "uncomplete", self.action_uncomplete, None)
         self.create_action(action_group, "cancel", self.action_cancel, None)
         self.insert_action_group("picker", action_group)
 
@@ -93,6 +94,21 @@ class HatchetPicker(Adw.Bin):
             new_text = string
         self.text_entry.props.text = new_text
         self.text_entry.set_position(len(new_text))
+
+    def action_uncomplete(self, action_name, params):
+        current_text = self.text_entry.props.text
+        if self.arg_hint:
+            match self.arg_hint:
+                case Gio.File:
+                    if current_text.endswith('/'):
+                        new_text = str(self.cwd.parent) + '/'
+                    else:
+                        new_text = str(self.cwd) + '/'
+        else:
+            new_text = None
+        if new_text:
+            self.text_entry.props.text = new_text
+            self.text_entry.set_position(len(new_text))
 
     def action_cancel(self, action_cancel, params):
         self.action = None

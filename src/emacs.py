@@ -32,6 +32,8 @@ def bind_emacs_picker(store):
     add_key(store, '<primary>p', 'action(picker.prev)')
     add_key(store, '<primary>n', 'action(picker.next)')
     add_key(store, 'Tab', 'action(picker.complete)')
+    add_key(store, '<shift>Tab', 'action(picker.uncomplete)')
+    add_key(store, '<alt>BackSpace', 'action(picker.uncomplete)')
     add_key(store, '<primary>g', 'action(picker.cancel)')
     add_key(store, 'Escape', 'action(picker.cancel)')
 
