@@ -79,33 +79,31 @@ class HatchetPicker(Adw.Bin):
         item = self.selection[pos]
         string = item.get_string()
         current_text = self.text_entry.props.text
-        if self.arg_hint:
-            match self.arg_hint:
-                case Gio.File:
-                    if len(current_text) > 0:
-                        new_path = Path(self.cwd, string)
-                        if new_path.is_dir():
-                            new_text = str(new_path) + '/'
-                        else:
-                            new_text = str(new_path)
+        match self.arg_hint:
+            case Gio.File:
+                if len(current_text) > 0:
+                    new_path = Path(self.cwd, string)
+                    if new_path.is_dir():
+                        new_text = str(new_path) + '/'
                     else:
-                        new_text = string
-        else:
-            new_text = string
+                        new_text = str(new_path)
+                else:
+                    new_text = string
+            case _:
+                new_text = string
         self.text_entry.props.text = new_text
         self.text_entry.set_position(len(new_text))
 
     def action_uncomplete(self, action_name, params):
         current_text = self.text_entry.props.text
-        if self.arg_hint:
-            match self.arg_hint:
-                case Gio.File:
-                    if current_text.endswith('/'):
-                        new_text = str(self.cwd.parent) + '/'
-                    else:
-                        new_text = str(self.cwd) + '/'
-        else:
-            new_text = None
+        match self.arg_hint:
+            case Gio.File:
+                if current_text.endswith('/'):
+                    new_text = str(self.cwd.parent) + '/'
+                else:
+                    new_text = str(self.cwd) + '/'
+            case _:
+                new_text = None
         if new_text:
             self.text_entry.props.text = new_text
             self.text_entry.set_position(len(new_text))
@@ -183,13 +181,38 @@ class HatchetPicker(Adw.Bin):
         else:
             self.cwd = path.parent
 
+    def _build_documents(self):
+        self.selection.props.model = None
+
+        async def routine(self):
+            foundry = await item_future(self.context.foundry)
+            text_mgr = foundry.dup_text_manager()
+            documents = text_mgr.list_documents()
+            text = self.text_entry.props.text.casefold()
+            filtered = []
+            for document in documents:
+                path = document.props.file.get_path()
+                if len(text) > 0:
+                    if text in path.casefold():
+                        filtered.append(path)
+                else:
+                    filtered.append(path)
+            if len(text) > 0:
+                filtered.sort(key=lambda x: len(x))
+            else:
+                filtered.sort()
+            self.selection.props.model = Gtk.StringList.new(filtered)
+
+        run_async(routine(self))
+
     def _build_selection(self):
-        if self.arg_hint:
-            match self.arg_hint:
-                case Gio.File:
-                    self._build_files()
-        else:
-            self._build_actions()
+        match self.arg_hint:
+            case Gio.File:
+                self._build_files()
+            case Foundry.TextDocument:
+                self._build_documents()
+            case _:
+                self._build_actions()
 
     def _select(self, pos):
         if pos >= self.selection.props.n_items:
@@ -200,21 +223,22 @@ class HatchetPicker(Adw.Bin):
         input = item.get_string()
 
         ret_object = None
-        if self.arg_hint:
-            match self.arg_hint:
-                case Gio.File:
-                    ret_object = Gio.File.new_for_path(Path(self.cwd, input))
-        else:
-            app = Gio.Application.get_default()
-            self.action = app.lookup_action(input)
-            try:
-                self.arg_hint = self.action._arg_hint
-            except Exception:
-                self.arg_hint = None
-            if self.arg_hint:
-                self.text_entry.props.text = ""
-                self._build_selection()
-                return
+        match self.arg_hint:
+            case Gio.File:
+                ret_object = Gio.File.new_for_path(Path(self.cwd, input))
+            case Foundry.TextDocument:
+                ret_object = Gio.File.new_for_path(Path(input))
+            case _:
+                app = Gio.Application.get_default()
+                self.action = app.lookup_action(input)
+                try:
+                    self.arg_hint = self.action._arg_hint
+                except Exception:
+                    self.arg_hint = None
+                if self.arg_hint:
+                    self.text_entry.props.text = ""
+                    self._build_selection()
+                    return
 
         if self.action:
             if isinstance(ret_object, Gio.File):

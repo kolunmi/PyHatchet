@@ -50,6 +50,7 @@ class HatchetApplication(Adw.Application):
         self.create_action('about', self.on_about_action, None)
         self.create_action('preferences', self.on_preferences_action, None)
         self.create_action('open-document', self.on_open_document_action, "s", arg_hint=Gio.File)
+        self.create_action('switch-document', self.on_open_document_action, "s", arg_hint=Foundry.TextDocument)
 
         window_shortcuts_model = Gio.ListStore.new(Gtk.Shortcut)
         bind_emacs_window(window_shortcuts_model);
