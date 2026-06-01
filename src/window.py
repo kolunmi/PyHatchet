@@ -30,6 +30,7 @@ class HatchetWindow(Adw.ApplicationWindow):
     __gtype_name__ = 'HatchetWindow'
 
     context = GObject.Property(type=HatchetContext, default=None, flags=GObject.ParamFlags.READWRITE)
+    active_document = GObject.Property(type=Foundry.TextDocument, default=None, flags=GObject.ParamFlags.READWRITE)
 
     overlay = Gtk.Template.Child()
 
@@ -90,3 +91,4 @@ class HatchetWindow(Adw.ApplicationWindow):
     def open_document(self, document):
         self.sourceview.open_document(document)
         self.sourceview.grab_focus()
+        self.active_document = document

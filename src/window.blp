@@ -7,6 +7,9 @@ template $HatchetWindow: Adw.ApplicationWindow {
   default-height: 600;
 
   content: Adw.ToolbarView {
+    top-bar-style: raised;
+    bottom-bar-style: raised;
+
     [top]
     Adw.HeaderBar {
       [end]
@@ -15,6 +18,25 @@ template $HatchetWindow: Adw.ApplicationWindow {
         icon-name: "open-menu-symbolic";
         tooltip-text: _("Main Menu");
         menu-model: primary_menu;
+      }
+    }
+
+    [bottom]
+    Adw.HeaderBar {
+      styles ["status-bar"]
+
+      show-start-title-buttons: false;
+      show-end-title-buttons: false;
+      show-title: false;
+      show-back-button: false;
+
+      [start]
+      Image {
+        gicon: bind template.active_document as <$FoundryTextDocument>.icon;
+      }
+      [start]
+      Label {
+        label: bind template.active_document as <$FoundryTextDocument>.title;
       }
     }
 

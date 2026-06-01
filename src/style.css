@@ -11,3 +11,8 @@
     font-size: larger;
     font-family: monospace;
 }
+
+
+.status-bar {
+    font-weight: bolder;
+}
