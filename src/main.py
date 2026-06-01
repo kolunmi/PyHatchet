@@ -98,14 +98,17 @@ class HatchetApplication(Adw.Application):
         async def action(self):
             foundry = await item_future(self.context.foundry)
             text_mgr = foundry.dup_text_manager()
-            document = await text_mgr.load(
-                Gio.File.new_for_path(params.get_string()),
-                Foundry.Operation.new(),
-                None,
-            ).to_asyncio()
-            win = self.choose_window()
-            if win:
-                win.open_document(document)
+            try:
+                document = await text_mgr.load(
+                    Gio.File.new_for_path(params.get_string()),
+                    Foundry.Operation.new(),
+                    None,
+                ).to_asyncio()
+                win = self.choose_window()
+                if win:
+                    win.open_document(document)
+            except GLib.Error as err:
+                self.show_error("Failed to open document", str(err))
         run_async(action(self))
 
     def create_action(self, name, callback, params, shortcuts=None, arg_hint=None):
@@ -137,7 +140,12 @@ class HatchetApplication(Adw.Application):
             if len(windows) > 0:
                 return windows[0]
 
-
+    def show_error(self, heading, body):
+        win = self.choose_window()
+        if not win:
+            return
+        variant = GLib.Variant("(ss)", [heading, body])
+        win.activate_action("win.show-error", variant)
 
 def main(version):
     asyncio_policy = GLibEventLoopPolicy()

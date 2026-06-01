@@ -37,6 +37,7 @@ class HatchetWindow(Adw.ApplicationWindow):
         super().__init__(**kwargs)
 
         action_group = Gio.SimpleActionGroup.new()
+        self.create_action(action_group, "show-error", self.action_show_error, "(ss)")
         self.create_action(action_group, "open-action-picker", self.action_open_action_picker, None)
         self.insert_action_group("win", action_group)
 
@@ -47,6 +48,13 @@ class HatchetWindow(Adw.ApplicationWindow):
         self.overlay.set_child(self.sourceview)
 
         self.picker = None
+
+    def action_show_error(self, action_name, params):
+        heading, body = params.unpack()
+        dialog = Adw.AlertDialog(heading=heading, body=body)
+        dialog.add_response("ok", "OK")
+        dialog.props.default_response = "ok"
+        dialog.present(self)
 
     def action_open_action_picker(self, action_name, params):
         if self.picker:
