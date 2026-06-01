@@ -255,6 +255,9 @@ class HatchetSourceView(Adw.Bin):
         self.mark_region_iter = None
 
         self.sourceview = FoundryGtk.SourceView.new(document)
+        gutter = GtkSource.Gutter(view=self.sourceview)
+        gutter.insert(FoundryGtk.ChangesGutterRenderer(), 0)
+
         self.buffer = self.sourceview.props.buffer
         self.buffer.connect("notify::cursor-position", self._cursor_position_change_cb)
         self._style_sourceview()
