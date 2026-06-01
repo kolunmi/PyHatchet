@@ -27,7 +27,7 @@ from .context import HatchetContext
 
 @Gtk.Template(resource_path='/net/kolunmi/Hatchet/picker.ui')
 class HatchetPicker(Adw.Bin):
-    __gtype_name__ = 'HatchetPicker'
+    __gtype_name__ = __qualname__
 
     context = GObject.Property(type=HatchetContext, default=None, flags=GObject.ParamFlags.READWRITE)
 

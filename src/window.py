@@ -27,7 +27,7 @@ from .sourceview import HatchetSourceView
 
 @Gtk.Template(resource_path='/net/kolunmi/Hatchet/window.ui')
 class HatchetWindow(Adw.ApplicationWindow):
-    __gtype_name__ = 'HatchetWindow'
+    __gtype_name__ = __qualname__
 
     context = GObject.Property(type=HatchetContext, default=None, flags=GObject.ParamFlags.READWRITE)
     active_document = GObject.Property(type=Foundry.TextDocument, default=None, flags=GObject.ParamFlags.READWRITE)
