@@ -43,6 +43,8 @@ class HatchetSourceView(Adw.Bin):
         self.create_action(action_group, "next-word", self.action_next_word, None)
         self.create_action(action_group, "beginning-of-line", self.action_beginning_of_line, None)
         self.create_action(action_group, "end-of-line", self.action_end_of_line, None)
+        self.create_action(action_group, "kill-word", self.action_kill_word, None)
+        self.create_action(action_group, "backward-kill-word", self.action_backward_kill_word, None)
         self.insert_action_group("sourceview", action_group)
 
         shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.sourceview_shortcuts_model)
@@ -135,6 +137,26 @@ class HatchetSourceView(Adw.Bin):
         iter.forward_to_line_end()
         buffer.place_cursor(iter)
         self.sourceview.jump_to_iter(iter, 0.0, False, 0.0, 0.0)
+
+    def action_kill_word(self, action_name, params):
+        if not self.sourceview:
+            return
+        buffer = self.sourceview.props.buffer
+        mark = buffer.get_insert()
+        start = buffer.get_iter_at_mark(mark)
+        end = buffer.get_iter_at_mark(mark)
+        end.forward_visible_word_end()
+        buffer.delete_interactive(start, end, True)
+
+    def action_backward_kill_word(self, action_name, params):
+        if not self.sourceview:
+            return
+        buffer = self.sourceview.props.buffer
+        mark = buffer.get_insert()
+        start = buffer.get_iter_at_mark(mark)
+        start.backward_visible_word_start()
+        end = buffer.get_iter_at_mark(mark)
+        buffer.delete_interactive(start, end, True)
 
     def create_action(self, group, name, callback, params):
         if params:

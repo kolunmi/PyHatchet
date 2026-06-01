@@ -46,3 +46,5 @@ def bind_emacs_sourceview(store):
     add_key(store, '<alt>f', 'action(sourceview.next-word)')
     add_key(store, '<primary>a', 'action(sourceview.beginning-of-line)')
     add_key(store, '<primary>e', 'action(sourceview.end-of-line)')
+    add_key(store, '<alt>d', 'action(sourceview.kill-word)')
+    add_key(store, '<alt>BackSpace', 'action(sourceview.backward-kill-word)')
