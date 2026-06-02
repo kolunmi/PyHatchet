@@ -71,3 +71,4 @@ def bind_emacs_secondary(shortcuts):
     add_key(shortcuts.window, "<primary>g", "app.next-keymap", str_arg("base"))
     add_key(shortcuts.window, "<primary>f", "app.open-document", str_arg(""))
     add_key(shortcuts.window, "b", "app.switch-document", str_arg(""))
+    add_key(shortcuts.window, "<primary>s", "win.save-document")

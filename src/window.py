@@ -40,6 +40,7 @@ class HatchetWindow(Adw.ApplicationWindow):
         action_group = Gio.SimpleActionGroup.new()
         self.create_action(action_group, "show-error", self.action_show_error, "(ss)")
         self.create_action(action_group, "open-action-picker", self.action_open_action_picker, "s")
+        self.create_action(action_group, "save-document", self.action_save_document, None)
         self.insert_action_group("win", action_group)
 
         shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.shortcuts.window)
@@ -75,6 +76,12 @@ class HatchetWindow(Adw.ApplicationWindow):
         picker.connect("selection-made", self.picker_selection_made_cb)
         self.overlay.add_overlay(picker)
         self.picker = picker
+
+    def action_save_document(self, action_name, params):
+        if not self.active_document:
+            return
+        variant = GLib.Variant("s", self.active_document.props.file.get_path())
+        self.activate_action('app.save-document', variant)
 
     def picker_selection_made_cb(self, ret_object, picker):
         if not self.picker:
