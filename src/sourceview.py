@@ -59,6 +59,9 @@ class HatchetSourceView(Adw.Bin):
         self.create_action(action_group, "scroll-down", self.action_scroll_down, None)
         self.create_action(action_group, "next-pair", self.action_next_pair, None)
         self.create_action(action_group, "prev-pair", self.action_prev_pair, None)
+        self.create_action(action_group, "mark-next-pair", self.action_mark_next_pair, None)
+        self.create_action(action_group, "mark-prev-pair", self.action_mark_prev_pair, None)
+        self.create_action(action_group, "swap-around-mark-region", self.action_swap_around_mark_region, None)
         self.insert_action_group("sourceview", action_group)
 
         shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.shortcuts.sourceview)
@@ -76,6 +79,16 @@ class HatchetSourceView(Adw.Bin):
         self.style_mgr.disconnect_by_func("notify::dark", self._dark_mode_changed_cb)
         super().do_dispose()
 
+    def _activate_mark_region(self):
+        if not self.sourceview:
+            return
+        buffer = self.sourceview.props.buffer
+        insert = buffer.get_insert()
+        bound = buffer.get_selection_bound()
+        insert_iter = buffer.get_iter_at_mark(insert)
+        buffer.move_mark(bound, insert_iter)
+        self.mark_region_iter = insert_iter
+
     def _deactivate_mark_region(self):
         if not self.sourceview:
             return
@@ -85,6 +98,19 @@ class HatchetSourceView(Adw.Bin):
         insert_iter = buffer.get_iter_at_mark(insert)
         buffer.move_mark(bound, insert_iter)
         self.mark_region_iter = None
+
+    def _swap_around_mark_region(self):
+        if not self.sourceview:
+            return
+        if not self.mark_region_iter:
+            return
+        buffer = self.sourceview.props.buffer
+        insert = buffer.get_insert()
+        insert_iter = buffer.get_iter_at_mark(insert)
+        bound = buffer.get_selection_bound()
+        buffer.move_mark(insert, self.mark_region_iter)
+        buffer.move_mark(bound, insert_iter)
+        self.mark_region_iter = insert_iter
 
     def _stable_half_page_scroll(self, modifier):
         if not self.sourceview:
@@ -344,14 +370,7 @@ class HatchetSourceView(Adw.Bin):
         buffer.delete_interactive(start, end, True)
 
     def action_activate_mark_region(self, action_name, params):
-        if not self.sourceview:
-            return
-        buffer = self.sourceview.props.buffer
-        insert = buffer.get_insert()
-        bound = buffer.get_selection_bound()
-        insert_iter = buffer.get_iter_at_mark(insert)
-        buffer.move_mark(bound, insert_iter)
-        self.mark_region_iter = insert_iter
+        self._activate_mark_region()
 
     def action_copy_region(self, action_name, params):
         if not self.sourceview:
@@ -439,6 +458,23 @@ class HatchetSourceView(Adw.Bin):
 
     def action_prev_pair(self, action_name, params):
         self._traverse_pair(backward=True)
+
+    def action_mark_next_pair(self, action_name, params):
+        if not self.sourceview:
+            return
+        if not self.mark_region_iter:
+            self._activate_mark_region()
+        self._traverse_pair()
+
+    def action_mark_prev_pair(self, action_name, params):
+        if not self.sourceview:
+            return
+        if not self.mark_region_iter:
+            self._activate_mark_region()
+        self._traverse_pair(backward=True)
+
+    def action_swap_around_mark_region(self, action_name, params):
+        self._swap_around_mark_region()
 
     def create_action(self, group, name, callback, params):
         if params:
