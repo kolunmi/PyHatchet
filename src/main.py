@@ -51,7 +51,7 @@ class HatchetApplication(Adw.Application):
         self.create_action('about', self.on_about_action, None)
         self.create_action('preferences', self.on_preferences_action, None)
         self.create_action('open-document', self.on_open_document_action, "s", arg_hint=Gio.File)
-        self.create_action('switch-document', self.on_open_document_action, "s", arg_hint=Foundry.TextDocument)
+        self.create_action('switch-document', self.on_switch_document_action, "s", arg_hint=Foundry.TextDocument)
         self.create_action('save-document', self.on_save_document_action, "s", arg_hint=Foundry.TextDocument)
 
         self.keymaps = {}
@@ -143,6 +143,19 @@ class HatchetApplication(Adw.Application):
             except GLib.Error as err:
                 self.show_error("Failed to open document", str(err))
         run_async(action(self))
+
+    def on_switch_document_action(self, widget, params):
+        path = params.get_string()
+
+        # interactive mode if the string is empty
+        if len(path) == 0:
+            win = self.choose_window()
+            if win:
+                variant = GLib.Variant("s", "switch-document")
+                win.activate_action("win.open-action-picker", variant)
+            return
+
+        self.on_open_document_action(widget, params)
 
     def on_save_document_action(self, widget, params):
         path = params.get_string()
