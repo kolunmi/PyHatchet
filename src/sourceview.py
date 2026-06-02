@@ -57,6 +57,8 @@ class HatchetSourceView(Adw.Bin):
         self.create_action(action_group, "center-view", self.action_center_view, None)
         self.create_action(action_group, "scroll-up", self.action_scroll_up, None)
         self.create_action(action_group, "scroll-down", self.action_scroll_down, None)
+        self.create_action(action_group, "next-pair", self.action_next_pair, None)
+        self.create_action(action_group, "prev-pair", self.action_prev_pair, None)
         self.insert_action_group("sourceview", action_group)
 
         shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.shortcuts.sourceview)
@@ -108,6 +110,112 @@ class HatchetSourceView(Adw.Bin):
         adjustment.props.value += new_yoffset - old_yoffset
 
         buffer.place_cursor(new_iter)
+
+    def _traverse_pair(self, backward=False):
+        if not self.sourceview:
+            return
+        buffer = self.sourceview.props.buffer
+        insert = buffer.get_insert()
+        insert_iter = buffer.get_iter_at_mark(insert)
+        if backward:
+            insert_iter.backward_cursor_position()
+        ch = insert_iter.get_char()
+        valid_chs = [
+            ("(", ")"),
+            ("[", "]"),
+            ("{", "}"),
+            ("<", ">"),
+        ]
+        valid = False
+        for test in valid_chs:
+            if backward:
+                right_ch, left_ch = test
+            else:
+                left_ch, right_ch = test
+            if ch == left_ch:
+                search_iter = insert_iter.copy()
+                if not backward:
+                    search_iter.forward_cursor_position()
+                valid = True
+                break
+        if not valid:
+            min_offset = None
+            for test in valid_chs:
+                if backward:
+                    result = insert_iter.backward_search(test[1], Gtk.TextSearchFlags.TEXT_ONLY)
+                else:
+                    result = insert_iter.forward_search(test[0], Gtk.TextSearchFlags.TEXT_ONLY)
+                if result:
+                    start, end = result
+                    offset = end.get_offset()
+                    pick = False
+                    if min_offset:
+                        if backward:
+                            pick = offset > min_offset
+                        else:
+                            pick = offset < min_offset
+                    else:
+                        pick = True
+                    if pick:
+                        min_offset = offset
+                        if backward:
+                            search_iter = start
+                            right_ch, left_ch = test
+                        else:
+                            search_iter = end
+                            left_ch, right_ch = test
+                        valid = True
+        if not valid:
+            return
+        stack_size = 1
+        while stack_size > 0:
+            if backward:
+                left_result = search_iter.backward_search(left_ch, Gtk.TextSearchFlags.TEXT_ONLY)
+            else:
+                left_result = search_iter.forward_search(left_ch, Gtk.TextSearchFlags.TEXT_ONLY)
+            if left_result:
+                left_start, left_end = left_result
+            else:
+                left_start = None
+                left_end = None
+            if backward:
+                right_result = search_iter.backward_search(right_ch, Gtk.TextSearchFlags.TEXT_ONLY)
+            else:
+                right_result = search_iter.forward_search(right_ch, Gtk.TextSearchFlags.TEXT_ONLY)
+            if right_result:
+                right_start, right_end = right_result
+            else:
+                right_start = None
+                right_end = None
+            if left_result and right_result:
+                if backward:
+                    cmp = right_start.compare(left_start)
+                else:
+                    cmp = left_start.compare(right_start)
+                if cmp < 0:
+                    if backward:
+                        search_iter = left_start
+                    else:
+                        search_iter = left_end
+                    stack_size += 1
+                else:
+                    if backward:
+                        search_iter = right_start
+                    else:
+                        search_iter = right_end
+                    stack_size -= 1
+            elif right_result:
+                if backward:
+                    search_iter = right_start
+                else:
+                    search_iter = right_end
+                stack_size -= 1
+            else:
+                break
+        if stack_size > 0:
+            return
+        buffer.place_cursor(search_iter)
+        self.sourceview.jump_to_iter(search_iter, 0.0, False, 0.0, 0.0)
 
     def action_cancel(self, action_name, params):
         if not self.sourceview:
@@ -325,6 +433,12 @@ class HatchetSourceView(Adw.Bin):
 
     def action_scroll_down(self, action_name, params):
         self._stable_half_page_scroll(1)
+
+    def action_next_pair(self, action_name, params):
+        self._traverse_pair()
+
+    def action_prev_pair(self, action_name, params):
+        self._traverse_pair(backward=True)
 
     def create_action(self, group, name, callback, params):
         if params:

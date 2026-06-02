@@ -72,6 +72,8 @@ def bind_emacs_base(shortcuts):
     add_key(shortcuts.sourceview, "<primary>l", "sourceview.center-view")
     add_key(shortcuts.sourceview, "<alt>v", "sourceview.scroll-up")
     add_key(shortcuts.sourceview, "<primary>v", "sourceview.scroll-down")
+    add_key(shortcuts.sourceview, "<primary><alt>p", "sourceview.prev-pair")
+    add_key(shortcuts.sourceview, "<primary><alt>n", "sourceview.next-pair")
 
 def bind_emacs_secondary(shortcuts):
     add_key(shortcuts.window, "<primary>g", "app.next-keymap", str_arg("base"))
