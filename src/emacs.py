@@ -29,12 +29,10 @@ def add_key(store, trigger, action, params=None):
 
     reset_keymap = action != "app.next-keymap"
     def cb(widget, args):
-        def idle():
-            widget.activate_action(action, params)
-            if reset_keymap:
-                widget.activate_action("app.next-keymap", str_arg('base'))
-        # schedule outside of event handling
-        GLib.idle_add(idle)
+        widget.activate_action(action, params)
+        if reset_keymap:
+            widget.activate_action("app.next-keymap", str_arg('base'))
+        return True
     shortcut_action = Gtk.CallbackAction.new(cb)
 
     shortcut = Gtk.Shortcut(trigger=shortcut_trigger, action=shortcut_action)

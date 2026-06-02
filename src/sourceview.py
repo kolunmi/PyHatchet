@@ -258,6 +258,13 @@ class HatchetSourceView(Adw.Bin):
         gutter = GtkSource.Gutter(view=self.sourceview)
         gutter.insert(FoundryGtk.ChangesGutterRenderer(), 0)
 
+        # prevent the text-view's builtin key bindings from messing with ours
+        #input_inhibit = Gtk.EventControllerKey.new()
+        #def on_key_press(controller, keyval, keycode, state):
+        #    return True
+        #input_inhibit.connect("key-pressed", on_key_press)
+        #self.sourceview.add_controller(input_inhibit)
+
         self.buffer = self.sourceview.props.buffer
         self.buffer.connect("notify::cursor-position", self._cursor_position_change_cb)
         self._style_sourceview()
