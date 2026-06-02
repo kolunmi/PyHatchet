@@ -71,6 +71,7 @@ class HatchetSourceView(Adw.Bin):
         self.style_mgr = Adw.StyleManager.get_default()
         self.style_mgr.connect("notify::dark", self._dark_mode_changed_cb)
 
+        self.overlay_cursor = None
         self.buffer = None
         self.last_insert_iter = None
         self.mark_region_iter = None
@@ -498,6 +499,12 @@ class HatchetSourceView(Adw.Bin):
 
         self.last_insert_iter = buffer.get_iter_at_mark(insert)
 
+        insert_iter = buffer.get_iter_at_mark(insert)
+        insert_location = self.sourceview.get_iter_location(insert_iter)
+        self.sourceview.move_overlay(self.overlay_cursor, insert_location.x, insert_location.y)
+        self.overlay_cursor.props.width_request = max(insert_location.width, 4)
+        self.overlay_cursor.props.height_request = insert_location.height
+
     def _style_sourceview(self):
         if not self.sourceview or not self.sourceview.props.buffer:
             return
@@ -519,6 +526,7 @@ class HatchetSourceView(Adw.Bin):
     def open_document(self, document):
         if self.buffer:
             self.buffer.disconnect_by_func(self._cursor_position_change_cb)
+        self.overlay_cursor = None
         self.buffer = None
         self.last_insert_iter = None
         self.mark_region_iter = None
@@ -526,6 +534,10 @@ class HatchetSourceView(Adw.Bin):
         self.sourceview = FoundryGtk.SourceView.new(document)
         gutter = GtkSource.Gutter(view=self.sourceview)
         gutter.insert(FoundryGtk.ChangesGutterRenderer(), 0)
+        self.overlay_cursor = Gtk.Fixed.new()
+        self.overlay_cursor.add_css_class("overlay-cursor")
+        self.sourceview.add_overlay(self.overlay_cursor, 0, 0)
+        self.sourceview.props.cursor_visible = False
 
         # prevent the text-view's builtin key bindings from messing with ours
         #input_inhibit = Gtk.EventControllerKey.new()

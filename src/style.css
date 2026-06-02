@@ -16,3 +16,9 @@
 .status-bar {
     font-weight: bolder;
 }
+
+
+.overlay-cursor {
+    background-color: alpha(var(--window-fg-color), 0.5);
+    border-radius: 2px;
+}
