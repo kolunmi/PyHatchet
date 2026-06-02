@@ -64,6 +64,14 @@ def bind_emacs_base(shortcuts):
     add_key(shortcuts.sourceview, "<primary><shift>BackSpace", "sourceview.kill-line")
     add_key(shortcuts.sourceview, "<primary>k", "sourceview.kill-line-rest")
     add_key(shortcuts.sourceview, "<primary>space", "sourceview.activate-mark-region")
+    add_key(shortcuts.sourceview, "<alt>w", "sourceview.copy-region")
+    add_key(shortcuts.sourceview, "<primary>w", "sourceview.kill-region")
+    add_key(shortcuts.sourceview, "<primary>y", "sourceview.paste")
+    add_key(shortcuts.sourceview, "<primary>slash", "sourceview.undo")
+    add_key(shortcuts.sourceview, "<primary>m", "sourceview.insert-newline")
+    add_key(shortcuts.sourceview, "<primary>l", "sourceview.center-view")
+    add_key(shortcuts.sourceview, "<alt>v", "sourceview.scroll-up")
+    add_key(shortcuts.sourceview, "<primary>v", "sourceview.scroll-down")
 
 def bind_emacs_secondary(shortcuts):
     add_key(shortcuts.window, "<primary>g", "app.next-keymap", str_arg("base"))

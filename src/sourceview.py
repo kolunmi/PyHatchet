@@ -19,7 +19,7 @@
 
 import asyncio
 
-from gi.repository import GLib, GObject, Gio, Gtk, GtkSource, Adw, Dex, Foundry, FoundryGtk, FoundryAdw
+from gi.repository import GLib, GObject, Gio, Gtk, Gdk, GtkSource, Adw, Dex, Foundry, FoundryGtk, FoundryAdw
 from .util import run_async, item_future
 from .context import HatchetContext
 
@@ -49,6 +49,14 @@ class HatchetSourceView(Adw.Bin):
         self.create_action(action_group, "kill-line", self.action_kill_line, None)
         self.create_action(action_group, "kill-line-rest", self.action_kill_line_rest, None)
         self.create_action(action_group, "activate-mark-region", self.action_activate_mark_region, None)
+        self.create_action(action_group, "copy-region", self.action_copy_region, None)
+        self.create_action(action_group, "kill-region", self.action_kill_region, None)
+        self.create_action(action_group, "paste", self.action_paste, None)
+        self.create_action(action_group, "undo", self.action_undo, None)
+        self.create_action(action_group, "insert-newline", self.action_insert_newline, None)
+        self.create_action(action_group, "center-view", self.action_center_view, None)
+        self.create_action(action_group, "scroll-up", self.action_scroll_up, None)
+        self.create_action(action_group, "scroll-down", self.action_scroll_down, None)
         self.insert_action_group("sourceview", action_group)
 
         shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.shortcuts.sourceview)
@@ -66,7 +74,7 @@ class HatchetSourceView(Adw.Bin):
         self.style_mgr.disconnect_by_func("notify::dark", self._dark_mode_changed_cb)
         super().do_dispose()
 
-    def action_cancel(self, action_name, params):
+    def _deactivate_mark_region(self):
         if not self.sourceview:
             return
         buffer = self.sourceview.props.buffer
@@ -75,6 +83,36 @@ class HatchetSourceView(Adw.Bin):
         insert_iter = buffer.get_iter_at_mark(insert)
         buffer.move_mark(bound, insert_iter)
         self.mark_region_iter = None
+
+    def _stable_half_page_scroll(self, modifier):
+        if not self.sourceview:
+            return
+        buffer = self.sourceview.props.buffer
+        insert = buffer.get_insert()
+        old_visible_rect = self.sourceview.get_visible_rect()
+        old_iter = buffer.get_iter_at_mark(insert)
+        old_location = self.sourceview.get_iter_location(old_iter)
+        old_yoffset = old_location.y - old_visible_rect.y
+
+        adjustment = self.content.props.vadjustment
+        page_size = adjustment.props.page_size
+        adjustment.props.value += (page_size / 2) * modifier
+
+        new_visible_rect = self.sourceview.get_visible_rect()
+        new_x = old_location.x
+        new_y = new_visible_rect.y + old_yoffset
+
+        _, new_iter = self.sourceview.get_iter_at_location(new_x, new_y)
+        new_location = self.sourceview.get_iter_location(new_iter)
+        new_yoffset = new_location.y - new_visible_rect.y
+        adjustment.props.value += new_yoffset - old_yoffset
+
+        buffer.place_cursor(new_iter)
+
+    def action_cancel(self, action_name, params):
+        if not self.sourceview:
+            return
+        self._deactivate_mark_region()
 
     def action_prev_line(self, action_name, params):
         if not self.sourceview:
@@ -206,6 +244,87 @@ class HatchetSourceView(Adw.Bin):
         insert_iter = buffer.get_iter_at_mark(insert)
         buffer.move_mark(bound, insert_iter)
         self.mark_region_iter = insert_iter
+
+    def action_copy_region(self, action_name, params):
+        if not self.sourceview:
+            return
+        if not self.mark_region_iter:
+            return
+        buffer = self.sourceview.props.buffer
+        insert = buffer.get_insert()
+        insert_iter = buffer.get_iter_at_mark(insert)
+        cmp = insert_iter.compare(self.mark_region_iter)
+        if cmp > 0:
+            start = self.mark_region_iter
+            end = insert_iter
+        else:
+            start = insert_iter
+            end = self.mark_region_iter
+        text = start.get_text(end)
+        clipboard = Gdk.Display.get_default().get_clipboard()
+        clipboard.set(text)
+        self._deactivate_mark_region()
+
+    def action_kill_region(self, action_name, params):
+        if not self.sourceview:
+            return
+        if not self.mark_region_iter:
+            return
+        buffer = self.sourceview.props.buffer
+        insert = buffer.get_insert()
+        insert_iter = buffer.get_iter_at_mark(insert)
+        cmp = insert_iter.compare(self.mark_region_iter)
+        if cmp > 0:
+            start = self.mark_region_iter
+            end = insert_iter
+        else:
+            start = insert_iter
+            end = self.mark_region_iter
+        text = start.get_text(end)
+        clipboard = Gdk.Display.get_default().get_clipboard()
+        clipboard.set(text)
+        self._deactivate_mark_region()
+        buffer.delete_interactive(start, end, True)
+
+    def action_paste(self, action_name, params):
+        async def routine():
+            if not self.sourceview:
+                return
+            clipboard = Gdk.Display.get_default().get_clipboard()
+            text = await clipboard.read_text_async()
+            buffer = self.sourceview.props.buffer
+            insert = buffer.get_insert()
+            insert_iter = buffer.get_iter_at_mark(insert)
+            buffer.insert(insert_iter, text)
+            self._deactivate_mark_region()
+        run_async(routine())
+
+    def action_undo(self, action_name, params):
+        if not self.sourceview:
+            return
+        buffer = self.sourceview.props.buffer
+        buffer.undo()
+
+    def action_insert_newline(self, action_name, params):
+        if not self.sourceview:
+            return
+        buffer = self.sourceview.props.buffer
+        insert = buffer.get_insert()
+        insert_iter = buffer.get_iter_at_mark(insert)
+        buffer.insert(insert_iter, "\n")
+
+    def action_center_view(self, action_name, params):
+        if not self.sourceview:
+            return
+        buffer = self.sourceview.props.buffer
+        insert = buffer.get_insert()
+        self.sourceview.scroll_to_mark(insert, 0.0, True, 0.0, 0.5)
+
+    def action_scroll_up(self, action_name, params):
+        self._stable_half_page_scroll(-1)
+
+    def action_scroll_down(self, action_name, params):
+        self._stable_half_page_scroll(1)
 
     def create_action(self, group, name, callback, params):
         if params:
