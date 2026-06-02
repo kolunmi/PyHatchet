@@ -30,6 +30,7 @@ class HatchetPicker(Adw.Bin):
     __gtype_name__ = __qualname__
 
     context = GObject.Property(type=HatchetContext, default=None, flags=GObject.ParamFlags.READWRITE)
+    for_action = GObject.Property(type=str, default=None, flags=GObject.ParamFlags.READWRITE|GObject.ParamFlags.CONSTRUCT_ONLY)
 
     selection_made = GObject.Signal(
         name="selection-made",
@@ -53,13 +54,21 @@ class HatchetPicker(Adw.Bin):
         self.create_action(action_group, "cancel", self.action_cancel, None)
         self.insert_action_group("picker", action_group)
 
-        shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.picker_shortcuts_model)
+        shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.shortcuts.picker)
         shortcut_controller.props.propagation_phase = Gtk.PropagationPhase.CAPTURE
         self.add_controller(shortcut_controller)
 
         self.action = None
         self.arg_hint = None
         self.cwd = None
+
+        if self.for_action:
+            app = Gio.Application.get_default()
+            self.action = app.lookup_action(self.for_action)
+            try:
+                self.arg_hint = self.action._arg_hint
+            except Exception:
+                self.arg_hint = None
         self._build_selection()
 
     def action_next(self, action_name, params):
@@ -93,6 +102,8 @@ class HatchetPicker(Adw.Bin):
                 new_text = string
         self.text_entry.props.text = new_text
         self.text_entry.set_position(len(new_text))
+        self.text_entry.grab_focus()
+        self.text_entry.select_region(-1, -1)
 
     def action_uncomplete(self, action_name, params):
         current_text = self.text_entry.props.text
@@ -107,6 +118,8 @@ class HatchetPicker(Adw.Bin):
         if new_text:
             self.text_entry.props.text = new_text
             self.text_entry.set_position(len(new_text))
+        self.text_entry.grab_focus()
+        self.text_entry.select_region(-1, -1)
 
     def action_cancel(self, action_cancel, params):
         self.action = None
@@ -260,6 +273,7 @@ class HatchetPicker(Adw.Bin):
     @Gtk.Template.Callback()
     def _text_map_cb(self, text):
         self.text_entry.grab_focus()
+        self.text_entry.select_region(-1, -1)
 
     @Gtk.Template.Callback()
     def _activated_cb(self, list_view, pos):

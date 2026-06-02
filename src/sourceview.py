@@ -51,7 +51,7 @@ class HatchetSourceView(Adw.Bin):
         self.create_action(action_group, "activate-mark-region", self.action_activate_mark_region, None)
         self.insert_action_group("sourceview", action_group)
 
-        shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.sourceview_shortcuts_model)
+        shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.shortcuts.sourceview)
         shortcut_controller.props.propagation_phase = Gtk.PropagationPhase.CAPTURE
         self.add_controller(shortcut_controller)
 

@@ -17,38 +17,56 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-from gi.repository import GObject, Gio, Gtk
+from gi.repository import GLib, GObject, Gio, Gtk
 
-def add_key(store, trigger, action):
+from .context import HatchetShortcuts
+
+def str_arg(s):
+    return GLib.Variant("s", s)
+
+def add_key(store, trigger, action, params=None):
     shortcut_trigger = Gtk.ShortcutTrigger.parse_string(trigger)
-    shortcut_action = Gtk.ShortcutAction.parse_string(action)
+
+    reset_keymap = action != "app.next-keymap"
+    def cb(widget, args):
+        def idle():
+            widget.activate_action(action, params)
+            if reset_keymap:
+                widget.activate_action("app.next-keymap", str_arg('base'))
+        # schedule outside of event handling
+        GLib.idle_add(idle)
+    shortcut_action = Gtk.CallbackAction.new(cb)
+
     shortcut = Gtk.Shortcut(trigger=shortcut_trigger, action=shortcut_action)
     store.append(shortcut)
 
-def bind_emacs_window(store):
-    add_key(store, '<alt>x', 'action(win.open-action-picker)')
+def bind_emacs_base(shortcuts):
+    add_key(shortcuts.window, "<primary>x", "app.next-keymap", str_arg("secondary"))
+    add_key(shortcuts.window, "<alt>x", "win.open-action-picker", str_arg(""))
 
-def bind_emacs_picker(store):
-    add_key(store, '<primary>p', 'action(picker.prev)')
-    add_key(store, '<primary>n', 'action(picker.next)')
-    add_key(store, 'Tab', 'action(picker.complete)')
-    add_key(store, '<shift>Tab', 'action(picker.uncomplete)')
-    add_key(store, '<alt>BackSpace', 'action(picker.uncomplete)')
-    add_key(store, '<primary>g', 'action(picker.cancel)')
-    add_key(store, 'Escape', 'action(picker.cancel)')
+    add_key(shortcuts.picker, "<primary>p", "picker.prev")
+    add_key(shortcuts.picker, "<primary>n", "picker.next")
+    add_key(shortcuts.picker, "Tab", "picker.complete")
+    add_key(shortcuts.picker, "<shift>Tab", "picker.uncomplete")
+    add_key(shortcuts.picker, "<alt>BackSpace", "picker.uncomplete")
+    add_key(shortcuts.picker, "<primary>g", "picker.cancel")
+    add_key(shortcuts.picker, "Escape", "picker.cancel")
 
-def bind_emacs_sourceview(store):
-    add_key(store, '<primary>g', 'action(sourceview.cancel)')
-    add_key(store, '<primary>p', 'action(sourceview.prev-line)')
-    add_key(store, '<primary>n', 'action(sourceview.next-line)')
-    add_key(store, '<primary>b', 'action(sourceview.prev-char)')
-    add_key(store, '<primary>f', 'action(sourceview.next-char)')
-    add_key(store, '<alt>b', 'action(sourceview.prev-word)')
-    add_key(store, '<alt>f', 'action(sourceview.next-word)')
-    add_key(store, '<primary>a', 'action(sourceview.beginning-of-line)')
-    add_key(store, '<primary>e', 'action(sourceview.end-of-line)')
-    add_key(store, '<alt>d', 'action(sourceview.kill-word)')
-    add_key(store, '<alt>BackSpace', 'action(sourceview.backward-kill-word)')
-    add_key(store, '<primary><shift>BackSpace', 'action(sourceview.kill-line)')
-    add_key(store, '<primary>k', 'action(sourceview.kill-line-rest)')
-    add_key(store, '<primary>space', 'action(sourceview.activate-mark-region)')
+    add_key(shortcuts.sourceview, "<primary>g", "sourceview.cancel")
+    add_key(shortcuts.sourceview, "<primary>p", "sourceview.prev-line")
+    add_key(shortcuts.sourceview, "<primary>n", "sourceview.next-line")
+    add_key(shortcuts.sourceview, "<primary>b", "sourceview.prev-char")
+    add_key(shortcuts.sourceview, "<primary>f", "sourceview.next-char")
+    add_key(shortcuts.sourceview, "<alt>b", "sourceview.prev-word")
+    add_key(shortcuts.sourceview, "<alt>f", "sourceview.next-word")
+    add_key(shortcuts.sourceview, "<primary>a", "sourceview.beginning-of-line")
+    add_key(shortcuts.sourceview, "<primary>e", "sourceview.end-of-line")
+    add_key(shortcuts.sourceview, "<alt>d", "sourceview.kill-word")
+    add_key(shortcuts.sourceview, "<alt>BackSpace", "sourceview.backward-kill-word")
+    add_key(shortcuts.sourceview, "<primary><shift>BackSpace", "sourceview.kill-line")
+    add_key(shortcuts.sourceview, "<primary>k", "sourceview.kill-line-rest")
+    add_key(shortcuts.sourceview, "<primary>space", "sourceview.activate-mark-region")
+
+def bind_emacs_secondary(shortcuts):
+    add_key(shortcuts.window, "<primary>g", "app.next-keymap", str_arg("base"))
+    add_key(shortcuts.window, "<primary>f", "app.open-document", str_arg(""))

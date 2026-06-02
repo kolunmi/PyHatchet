@@ -19,19 +19,42 @@
 
 from pathlib import Path
 
-from gi.repository import GObject, Gio, Foundry
+from gi.repository import GObject, Gio, Gtk, Foundry
 
 from .util import run_async, item_future
+
+class HatchetShortcuts(GObject.Object):
+    __gtype_name__ = __qualname__
+
+    window = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE)
+    picker = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE)
+    sourceview = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def new_with_stores():
+        return HatchetShortcuts(
+            window=Gio.ListStore.new(Gtk.Shortcut),
+            picker=Gio.ListStore.new(Gtk.Shortcut),
+            sourceview=Gio.ListStore.new(Gtk.Shortcut),
+        )
+
+    def apply(self, other):
+        def copy(dest, src):
+            dest.splice(0, len(dest), src)
+        copy(self.window, other.window)
+        copy(self.picker, other.picker)
+        copy(self.sourceview, other.sourceview)
 
 class HatchetContext(GObject.Object):
     __gtype_name__ = __qualname__
 
-    window_shortcuts_model = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE)
-    picker_shortcuts_model = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE)
-    sourceview_shortcuts_model = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE)
-
+    shortcuts = GObject.Property(type=HatchetShortcuts, default=None, flags=GObject.ParamFlags.READWRITE)
     user_foundry = GObject.Property(type=Foundry.FutureItem, default=None, flags=GObject.ParamFlags.READWRITE)
     foundrys = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE)
+
+    current_keymap = GObject.Property(type=str, default=None, flags=GObject.ParamFlags.READWRITE)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

@@ -38,6 +38,11 @@ template $HatchetWindow: Adw.ApplicationWindow {
       Label {
         label: bind template.active_document as <$FoundryTextDocument>.title;
       }
+
+      [end]
+      Label {
+        label: bind template.context as <$HatchetContext>.current-keymap;
+      }
     }
 
     content: Overlay overlay {

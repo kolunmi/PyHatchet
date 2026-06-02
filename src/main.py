@@ -34,9 +34,9 @@ from gi.repository import GLib, Gio, Gtk, Adw, Dex, Foundry, FoundryGtk, Foundry
 from gi.events import GLibEventLoopPolicy
 
 from .util import run_async, item_future
-from .context import HatchetContext
+from .context import HatchetContext, HatchetShortcuts
 from .window import HatchetWindow
-from .emacs import bind_emacs_window, bind_emacs_picker, bind_emacs_sourceview
+from .emacs import bind_emacs_base, bind_emacs_secondary
 
 class HatchetApplication(Adw.Application):
     """The main application singleton class."""
@@ -46,6 +46,7 @@ class HatchetApplication(Adw.Application):
                          flags=Gio.ApplicationFlags.DEFAULT_FLAGS,
                          resource_base_path='/net/kolunmi/Hatchet')
 
+        self.create_action('next-keymap', self.on_next_keymap_action, "s")
         self.create_action('quit', lambda *_: self.quit(), None, shortcuts=['<control>q'])
         self.create_action('about', self.on_about_action, None)
         self.create_action('preferences', self.on_preferences_action, None)
@@ -53,25 +54,29 @@ class HatchetApplication(Adw.Application):
         self.create_action('switch-document', self.on_open_document_action, "s", arg_hint=Foundry.TextDocument)
         self.create_action('save-document', self.on_save_document_action, "s", arg_hint=Foundry.TextDocument)
 
-        window_shortcuts_model = Gio.ListStore.new(Gtk.Shortcut)
-        bind_emacs_window(window_shortcuts_model);
+        self.keymaps = {}
+        self.current_keymap = "base"
 
-        picker_shortcuts_model = Gio.ListStore.new(Gtk.Shortcut)
-        bind_emacs_picker(picker_shortcuts_model);
+        base_shortcuts = HatchetShortcuts.new_with_stores()
+        bind_emacs_base(base_shortcuts)
+        self.keymaps["base"] = base_shortcuts
 
-        sourceview_shortcuts_model = Gio.ListStore.new(Gtk.Shortcut)
-        bind_emacs_sourceview(sourceview_shortcuts_model);
+        secondary_shortcuts = HatchetShortcuts.new_with_stores()
+        bind_emacs_secondary(secondary_shortcuts)
+        self.keymaps["secondary"] = secondary_shortcuts
+
+        shortcuts = HatchetShortcuts.new_with_stores()
+        shortcuts.apply(base_shortcuts)
 
         user_foundry = Foundry.FutureItem.new(Foundry.Context.new_for_user())
         foundrys = Gio.ListStore.new(Foundry.FutureItem)
         foundrys.append(user_foundry)
 
         self.context = HatchetContext(
-            window_shortcuts_model=window_shortcuts_model,
-            picker_shortcuts_model=picker_shortcuts_model,
-            sourceview_shortcuts_model=sourceview_shortcuts_model,
+            shortcuts=shortcuts,
             user_foundry=user_foundry,
             foundrys=foundrys,
+            current_keymap=self.current_keymap,
         )
 
     def do_activate(self):
@@ -101,8 +106,28 @@ class HatchetApplication(Adw.Application):
         """Callback for the app.preferences action."""
         print('app.preferences action activated')
 
+    def on_next_keymap_action(self, widget, params):
+        keymap_id = params.get_string()
+        if not keymap_id in self.keymaps:
+            keymap_id = "base"
+        if keymap_id == self.current_keymap:
+            return
+        shortcuts = self.keymaps[keymap_id]
+        self.context.shortcuts.apply(shortcuts)
+        self.current_keymap = keymap_id
+        self.context.current_keymap = keymap_id
+
     def on_open_document_action(self, widget, params):
         path = params.get_string()
+
+        # interactive mode if the string is empty
+        if len(path) == 0:
+            win = self.choose_window()
+            if win:
+                variant = GLib.Variant("s", "open-document")
+                win.activate_action("win.open-action-picker", variant)
+            return
+
         async def action(self):
             foundry = await self.context.get_foundry_for_path(path)
             text_mgr = foundry.dup_text_manager()

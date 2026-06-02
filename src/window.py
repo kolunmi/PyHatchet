@@ -39,10 +39,11 @@ class HatchetWindow(Adw.ApplicationWindow):
 
         action_group = Gio.SimpleActionGroup.new()
         self.create_action(action_group, "show-error", self.action_show_error, "(ss)")
-        self.create_action(action_group, "open-action-picker", self.action_open_action_picker, None)
+        self.create_action(action_group, "open-action-picker", self.action_open_action_picker, "s")
         self.insert_action_group("win", action_group)
 
-        shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.window_shortcuts_model)
+        shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.shortcuts.window)
+        shortcut_controller.props.propagation_phase = Gtk.PropagationPhase.CAPTURE
         self.add_controller(shortcut_controller)
 
         self.sourceview = HatchetSourceView(context=self.context)
@@ -60,8 +61,10 @@ class HatchetWindow(Adw.ApplicationWindow):
     def action_open_action_picker(self, action_name, params):
         if self.picker:
             return
+        for_action = params.get_string()
         picker = HatchetPicker(
             context=self.context,
+            for_action=for_action,
             halign=Gtk.Align.FILL,
             valign=Gtk.Align.START,
             margin_start=30,
