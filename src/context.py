@@ -24,7 +24,7 @@ from gi.repository import GObject, Gio, Foundry
 from .util import run_async, item_future
 
 class HatchetContext(GObject.Object):
-    __gtype_name__ = 'HatchetContext'
+    __gtype_name__ = __qualname__
 
     window_shortcuts_model = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE)
     picker_shortcuts_model = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE)
