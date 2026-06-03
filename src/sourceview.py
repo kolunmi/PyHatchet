@@ -19,15 +19,16 @@
 
 import asyncio
 
-from gi.repository import GLib, GObject, Gio, Gtk, Gdk, GtkSource, Adw, Dex, Foundry, FoundryGtk, FoundryAdw
+from gi.repository import GLib, GObject, Gio, Gtk, Pango, Gdk, GtkSource, Adw, Dex, Foundry, FoundryGtk, FoundryAdw
 from .util import run_async, item_future
-from .context import HatchetContext
+from .context import HatchetContext, HatchetDocumentContext
 
 @Gtk.Template(resource_path='/net/kolunmi/Hatchet/sourceview.ui')
 class HatchetSourceView(Adw.Bin):
     __gtype_name__ = __qualname__
 
     context = GObject.Property(type=HatchetContext, default=None, flags=GObject.ParamFlags.READWRITE)
+    document_ctx = GObject.Property(type=HatchetDocumentContext, default=None, flags=GObject.ParamFlags.READWRITE)
 
     content = Gtk.Template.Child()
 
@@ -71,14 +72,31 @@ class HatchetSourceView(Adw.Bin):
         self.style_mgr = Adw.StyleManager.get_default()
         self.style_mgr.connect("notify::dark", self._dark_mode_changed_cb)
 
+        self._reset()
+
+    def do_dispose(self):
+        self.style_mgr.disconnect_by_func(self._dark_mode_changed_cb)
+        self._reset()
+        super().do_dispose()
+
+    def _reset(self):
+        try:
+            if self.buffer:
+                self.buffer.disconnect_by_func(self._contents_change_cb)
+                self.buffer.disconnect_by_func(self._cursor_position_change_cb)
+        except Exception:
+            pass
+
+        if self.document_ctx:
+            self.document_ctx.props.current_blame_signature = None
+            self.document_ctx.props.have_current_blame_signature = False
+
         self.overlay_cursor = None
         self.buffer = None
         self.last_insert_iter = None
         self.mark_region_iter = None
-
-    def do_dispose(self):
-        self.style_mgr.disconnect_by_func("notify::dark", self._dark_mode_changed_cb)
-        super().do_dispose()
+        self.blame = None
+        self.blame_needs_update = False
 
     def _activate_mark_region(self):
         if not self.sourceview:
@@ -490,8 +508,8 @@ class HatchetSourceView(Adw.Bin):
         action.connect("activate", callback)
         group.add_action(action)
 
-    def _dark_mode_changed_cb(self, style_manager, pspec):
-        self._style_sourceview()
+    def _contents_change_cb(self, buffer):
+        self.blame_needs_update = True
 
     def _cursor_position_change_cb(self, buffer, pspec):
         insert = buffer.get_insert()
@@ -508,6 +526,22 @@ class HatchetSourceView(Adw.Bin):
         self.sourceview.move_overlay(self.overlay_cursor, insert_location.x, insert_location.y)
         self.overlay_cursor.props.width_request = max(insert_location.width, 4)
         self.overlay_cursor.props.height_request = insert_location.height
+
+        if self.blame:
+            line = insert_iter.get_line()
+            async def retrieve_blame():
+                if self.blame_needs_update:
+                    bytes = GLib.Bytes.new(self.buffer.props.text.encode())
+                    await self.blame.update(bytes)
+                    self.blame_needs_update = False
+                if not self.blame or not self.document_ctx:
+                    return
+                self.document_ctx.props.current_blame_signature = self.blame.query_line(line)
+                self.document_ctx.props.have_current_blame_signature = self.document_ctx.props.current_blame_signature is not None
+            run_async(retrieve_blame())
+
+    def _dark_mode_changed_cb(self, style_manager, pspec):
+        self._style_sourceview()
 
     def _style_sourceview(self):
         if not self.sourceview or not self.sourceview.props.buffer:
@@ -527,17 +561,15 @@ class HatchetSourceView(Adw.Bin):
             return
         self.sourceview.grab_focus()
 
-    def open_document(self, document):
-        if self.buffer:
-            self.buffer.disconnect_by_func(self._cursor_position_change_cb)
-        self.overlay_cursor = None
-        self.buffer = None
-        self.last_insert_iter = None
-        self.mark_region_iter = None
+    def open_document(self, document_ctx):
+        self._reset()
 
-        self.sourceview = FoundryGtk.SourceView.new(document)
+        self.document_ctx = document_ctx
+        self.sourceview = FoundryGtk.SourceView.new(document_ctx.document)
+
         gutter = GtkSource.Gutter(view=self.sourceview)
         gutter.insert(FoundryGtk.ChangesGutterRenderer(), 0)
+
         self.overlay_cursor = Gtk.Fixed.new()
         self.overlay_cursor.add_css_class("overlay-cursor")
         self.sourceview.add_overlay(self.overlay_cursor, 0, 0)
@@ -551,6 +583,16 @@ class HatchetSourceView(Adw.Bin):
         #self.sourceview.add_controller(input_inhibit)
 
         self.buffer = self.sourceview.props.buffer
+        self.buffer.connect("changed", self._contents_change_cb)
         self.buffer.connect("notify::cursor-position", self._cursor_position_change_cb)
         self._style_sourceview()
         self.content.set_child(self.sourceview)
+
+        if self.document_ctx.git:
+            async def make_blame():
+                if not self.document_ctx.git:
+                    return
+                vcs_file = await self.document_ctx.git.find_file(self.document_ctx.document.props.file)
+                blame = await self.document_ctx.git.blame(vcs_file)
+                self.blame = blame
+            run_async(make_blame())

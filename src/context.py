@@ -97,3 +97,17 @@ class HatchetContext(GObject.Object):
             return await construct_future
         except Exception:
             return await item_future(self.user_foundry)
+
+class HatchetDocumentContext(GObject.Object):
+    __gtype_name__ = __qualname__
+
+    document = GObject.Property(type=Foundry.TextDocument, default=None, flags=GObject.ParamFlags.READWRITE|GObject.ParamFlags.CONSTRUCT_ONLY)
+    foundry = GObject.Property(type=Foundry.Context, default=None, flags=GObject.ParamFlags.READWRITE|GObject.ParamFlags.CONSTRUCT_ONLY)
+    git = GObject.Property(type=Foundry.Vcs, default=None, flags=GObject.ParamFlags.READWRITE|GObject.ParamFlags.CONSTRUCT_ONLY)
+    have_git = GObject.Property(type=bool, default=False, flags=GObject.ParamFlags.READWRITE|GObject.ParamFlags.CONSTRUCT_ONLY)
+
+    current_blame_signature = GObject.Property(type=Foundry.VcsSignature, default=None, flags=GObject.ParamFlags.READWRITE)
+    have_current_blame_signature = GObject.Property(type=bool, default=False, flags=GObject.ParamFlags.READWRITE)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)

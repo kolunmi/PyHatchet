@@ -21,7 +21,7 @@ import asyncio
 
 from gi.repository import GLib, GObject, Gio, Gtk, Adw, Dex, Foundry, FoundryGtk, FoundryAdw
 from .util import run_async, item_future
-from .context import HatchetContext
+from .context import HatchetContext, HatchetDocumentContext
 from .picker import HatchetPicker
 from .sourceview import HatchetSourceView
 
@@ -30,16 +30,15 @@ class HatchetWindow(Adw.ApplicationWindow):
     __gtype_name__ = __qualname__
 
     context = GObject.Property(type=HatchetContext, default=None, flags=GObject.ParamFlags.READWRITE)
-    active_document = GObject.Property(type=Foundry.TextDocument, default=None, flags=GObject.ParamFlags.READWRITE)
-    active_foundry = GObject.Property(type=Foundry.Context, default=None, flags=GObject.ParamFlags.READWRITE)
-    active_git = GObject.Property(type=Foundry.Vcs, default=None, flags=GObject.ParamFlags.READWRITE)
-    have_active_git = GObject.Property(type=bool, default=False, flags=GObject.ParamFlags.READWRITE)
+    document_ctx = GObject.Property(type=HatchetDocumentContext, default=None, flags=GObject.ParamFlags.READWRITE)
 
     toasts = Gtk.Template.Child()
     overlay = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+        self.document_ctx = HatchetDocumentContext()
 
         action_group = Gio.SimpleActionGroup.new()
         self.create_action(action_group, "show-error", self.action_show_error, "(ss)")
@@ -82,9 +81,9 @@ class HatchetWindow(Adw.ApplicationWindow):
         self.picker = picker
 
     def action_save_document(self, action_name, params):
-        if not self.active_document:
+        if not self.document_ctx:
             return
-        variant = GLib.Variant("s", self.active_document.props.file.get_path())
+        variant = GLib.Variant("s", self.document_ctx.document.props.file.get_path())
         self.activate_action('app.save-document', variant)
 
     def picker_selection_made_cb(self, ret_object, picker):
@@ -111,13 +110,21 @@ class HatchetWindow(Adw.ApplicationWindow):
         self.toasts.add_toast(toast)
 
     def open_document(self, document, foundry):
-        if self.active_document:
-            self.active_document.disconnect_by_func(self._on_active_document_saved)
+        if self.document_ctx and self.document_ctx.document:
+            self.document_ctx.document.disconnect_by_func(self._on_active_document_saved)
         document.connect("saved", self._on_active_document_saved)
 
-        self.sourceview.open_document(document)
+        git = foundry.props.vcs_manager.find_vcs("git")
+        self.document_ctx = HatchetDocumentContext(
+            document=document,
+            foundry=foundry,
+            git=git,
+            have_git=git is not None,
+        )
+
+        self.sourceview.open_document(self.document_ctx)
         self.sourceview.grab_focus()
-        self.active_document = document
-        self.active_foundry = foundry
-        self.active_git = foundry.props.vcs_manager.find_vcs("git")
-        self.have_active_git = self.active_git is not None
+
+    @Gtk.Template.Callback()
+    def _format_datetime(self, widget, datetime):
+        return datetime.format("%x")

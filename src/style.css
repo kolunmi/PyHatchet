@@ -17,6 +17,10 @@
     font-weight: bolder;
 }
 
+.status-bar-mini {
+    font-weight: normal;
+    font-size: smaller;
+}
 
 .overlay-cursor {
     background-color: alpha(var(--window-fg-color), 0.5);

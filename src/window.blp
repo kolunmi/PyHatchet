@@ -32,24 +32,24 @@ template $HatchetWindow: Adw.ApplicationWindow {
 
       [start]
       Image {
-        gicon: bind template.active_document as <$FoundryTextDocument>.icon;
+        gicon: bind template.document-ctx as <$HatchetDocumentContext>.document as <$FoundryTextDocument>.icon;
       }
       [start]
       Label {
-        label: bind template.active_document as <$FoundryTextDocument>.title;
+        label: bind template.document-ctx as <$HatchetDocumentContext>.document as <$FoundryTextDocument>.title;
       }
 
       [end]
       Box {
         orientation: horizontal;
         spacing: 4;
-        visible: bind template.have_active_git;
+        visible: bind template.document-ctx as <$HatchetDocumentContext>.have-git;
 
         Image {
           icon-name: "vcs-branch-symbolic";
         }
         Label {
-          label: bind template.active_git as <$FoundryVcs>.branch-name;
+          label: bind template.document-ctx as <$HatchetDocumentContext>.git as <$FoundryVcs>.branch-name;
         }
       }
       [end]
@@ -62,6 +62,35 @@ template $HatchetWindow: Adw.ApplicationWindow {
         }
         Label {
           label: bind template.context as <$HatchetContext>.current-keymap;
+        }
+      }
+      [end]
+      Box {
+        margin-start: 4;
+        margin-end: 4;
+        orientation: horizontal;
+        spacing: 4;
+        visible: bind template.document-ctx as <$HatchetDocumentContext>.have-current-blame-signature;
+
+        // Image {
+        //   icon-name: "person-symbolic";
+        // }
+        Box {
+          orientation: vertical;
+          spacing: 2;
+
+          Label {
+            styles ["status-bar-mini"]
+            label: bind template.document-ctx as <$HatchetDocumentContext>.current-blame-signature as <$FoundryVcsSignature>.name;
+            xalign: 1.0;
+            ellipsize: end;
+          }
+          Label {
+            styles ["status-bar-mini", "dimmed"]
+            label: bind $_format_datetime(template.document-ctx as <$HatchetDocumentContext>.current-blame-signature as <$FoundryVcsSignature>.when as <$GDateTime>);
+            xalign: 1.0;
+            ellipsize: end;
+          }
         }
       }
     }
