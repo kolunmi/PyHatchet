@@ -35,6 +35,7 @@ class HatchetWindow(Adw.ApplicationWindow):
     active_git = GObject.Property(type=Foundry.Vcs, default=None, flags=GObject.ParamFlags.READWRITE)
     have_active_git = GObject.Property(type=bool, default=False, flags=GObject.ParamFlags.READWRITE)
 
+    toasts = Gtk.Template.Child()
     overlay = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
@@ -101,7 +102,19 @@ class HatchetWindow(Adw.ApplicationWindow):
         action.connect("activate", callback)
         group.add_action(action)
 
+    def _on_active_document_saved(self, document, file):
+        basename = file.get_basename()
+        toast = Adw.Toast(
+            title=f"Wrote {basename}",
+            timeout=1,
+        )
+        self.toasts.add_toast(toast)
+
     def open_document(self, document, foundry):
+        if self.active_document:
+            self.active_document.disconnect_by_func(self._on_active_document_saved)
+        document.connect("saved", self._on_active_document_saved)
+
         self.sourceview.open_document(document)
         self.sourceview.grab_focus()
         self.active_document = document

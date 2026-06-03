@@ -249,6 +249,10 @@ class HatchetSourceView(Adw.Bin):
             return
         self._deactivate_mark_region()
 
+        toast_overlay = self.get_ancestor(Adw.ToastOverlay)
+        if toast_overlay:
+            toast_overlay.dismiss_all()
+
     def action_prev_line(self, action_name, params):
         if not self.sourceview:
             return
