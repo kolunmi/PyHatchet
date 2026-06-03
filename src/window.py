@@ -31,6 +31,9 @@ class HatchetWindow(Adw.ApplicationWindow):
 
     context = GObject.Property(type=HatchetContext, default=None, flags=GObject.ParamFlags.READWRITE)
     active_document = GObject.Property(type=Foundry.TextDocument, default=None, flags=GObject.ParamFlags.READWRITE)
+    active_foundry = GObject.Property(type=Foundry.Context, default=None, flags=GObject.ParamFlags.READWRITE)
+    active_git = GObject.Property(type=Foundry.Vcs, default=None, flags=GObject.ParamFlags.READWRITE)
+    have_active_git = GObject.Property(type=bool, default=False, flags=GObject.ParamFlags.READWRITE)
 
     overlay = Gtk.Template.Child()
 
@@ -98,7 +101,10 @@ class HatchetWindow(Adw.ApplicationWindow):
         action.connect("activate", callback)
         group.add_action(action)
 
-    def open_document(self, document):
+    def open_document(self, document, foundry):
         self.sourceview.open_document(document)
         self.sourceview.grab_focus()
         self.active_document = document
+        self.active_foundry = foundry
+        self.active_git = foundry.props.vcs_manager.find_vcs("git")
+        self.have_active_git = self.active_git is not None

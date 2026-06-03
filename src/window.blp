@@ -40,8 +40,29 @@ template $HatchetWindow: Adw.ApplicationWindow {
       }
 
       [end]
-      Label {
-        label: bind template.context as <$HatchetContext>.current-keymap;
+      Box {
+        orientation: horizontal;
+        spacing: 4;
+        visible: bind template.have_active_git;
+
+        Image {
+          icon-name: "vcs-branch-symbolic";
+        }
+        Label {
+          label: bind template.active_git as <$FoundryVcs>.branch-name;
+        }
+      }
+      [end]
+      Box {
+        orientation: horizontal;
+        spacing: 4;
+
+        Image {
+          icon-name: "input-keyboard-symbolic";
+        }
+        Label {
+          label: bind template.context as <$HatchetContext>.current-keymap;
+        }
       }
     }
 

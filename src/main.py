@@ -139,7 +139,7 @@ class HatchetApplication(Adw.Application):
                 ).to_asyncio()
                 win = self.choose_window()
                 if win:
-                    win.open_document(document)
+                    win.open_document(document, foundry)
             except GLib.Error as err:
                 self.show_error("Failed to open document", str(err))
         run_async(action(self))
