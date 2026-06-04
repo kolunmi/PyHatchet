@@ -18,6 +18,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import asyncio
+from pathlib import Path
 
 from gi.repository import GLib, GObject, Gio, Gtk, Adw, Dex, Foundry, FoundryGtk, FoundryAdw
 from .util import run_async, item_future
@@ -66,9 +67,15 @@ class HatchetWindow(Adw.ApplicationWindow):
         if self.picker:
             return
         for_action = params.get_string()
+        if self.document_ctx and self.document_ctx.document:
+            path = self.document_ctx.document.props.file.get_path()
+            for_cwd = str(Path(path).parent)
+        else:
+            for_cwd = None
         picker = HatchetPicker(
             context=self.context,
             for_action=for_action,
+            for_cwd=for_cwd,
             halign=Gtk.Align.FILL,
             valign=Gtk.Align.START,
             margin_start=30,

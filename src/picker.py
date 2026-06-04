@@ -31,6 +31,7 @@ class HatchetPicker(Adw.Bin):
 
     context = GObject.Property(type=HatchetContext, default=None, flags=GObject.ParamFlags.READWRITE)
     for_action = GObject.Property(type=str, default=None, flags=GObject.ParamFlags.READWRITE|GObject.ParamFlags.CONSTRUCT_ONLY)
+    for_cwd = GObject.Property(type=str, default=None, flags=GObject.ParamFlags.READWRITE|GObject.ParamFlags.CONSTRUCT_ONLY)
 
     selection_made = GObject.Signal(
         name="selection-made",
@@ -155,9 +156,14 @@ class HatchetPicker(Adw.Bin):
     def _build_files(self):
         text = self.text_entry.props.text
         if len(text) == 0:
-            text = str(Path.cwd()) + '/'
+            if self.for_cwd:
+                text = str(Path(self.for_cwd)) + '/'
+            else:
+                text = str(Path.cwd()) + '/'
             self.text_entry.props.text = text
             self.text_entry.set_position(len(text))
+            # this will trigger another invocation of this function
+            return
 
         path = Path(text).expanduser()
         is_dir = path.is_dir()
