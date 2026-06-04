@@ -633,6 +633,6 @@ class HatchetSourceView(Adw.Bin):
                 if not self.document_ctx.git:
                     return
                 vcs_file = await self.document_ctx.git.find_file(self.document_ctx.document.props.file)
-                blame = await self.document_ctx.git.blame(vcs_file)
-                self.blame = blame
-            run_async(make_blame())
+                self.blame = await self.document_ctx.git.blame(vcs_file)
+                self.blame_update_routine = None
+            self.blame_update_routine = run_async(make_blame())
