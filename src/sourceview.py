@@ -74,30 +74,27 @@ class HatchetSourceView(Adw.Bin):
         self.style_mgr = Adw.StyleManager.get_default()
         self.style_mgr.connect("notify::dark", self._dark_mode_changed_cb)
 
-        self._reset()
+        self._reset(init=True)
 
     def do_dispose(self):
         self.style_mgr.disconnect_by_func(self._dark_mode_changed_cb)
         self._reset()
         super().do_dispose()
 
-    def _reset(self):
-        if self.document_ctx:
-            self.document_ctx.props.current_blame_signature = None
-            self.document_ctx.props.have_current_blame_signature = False
+    def _reset(self, init=False):
+        if not init:
+            if self.document_ctx:
+                self.document_ctx.props.current_blame_signature = None
+                self.document_ctx.props.have_current_blame_signature = False
 
-        try:
             if self.buffer:
                 self.buffer.disconnect_by_func(self._contents_change_cb)
                 self.buffer.disconnect_by_func(self._cursor_position_change_cb)
-        except Exception:
-            pass
 
-        try:
             if self.blame_update_routine:
                 self.blame_update_routine.cancel()
-        except Exception:
-            pass
+            if self.blame_update_timeout > 0:
+                GLib.Source.remove(self.blame_update_timeout)
 
         self.overlay_cursor = None
         self.buffer = None
@@ -106,6 +103,7 @@ class HatchetSourceView(Adw.Bin):
         self.blame = None
         self.blame_needs_update = False
         self.blame_update_routine = None
+        self.blame_update_timeout = 0
 
     def _activate_mark_region(self):
         if not self.sourceview:
@@ -553,21 +551,34 @@ class HatchetSourceView(Adw.Bin):
         self.overlay_cursor.props.height_request = insert_location.height
 
         if self.blame and not self.blame_update_routine:
-            async def retrieve_blame():
-                if self.blame_needs_update:
-                    bytes = GLib.Bytes.new(self.buffer.props.text.encode())
-                    await self.blame.update(bytes)
-                    self.blame_needs_update = False
+            def idle():
+                self.blame_update_timeout = 0
                 if not self.blame:
                     return
-                buffer = self.sourceview.props.buffer
-                insert = buffer.get_insert()
-                insert_iter = buffer.get_iter_at_mark(insert)
-                line = insert_iter.get_line()
-                self.document_ctx.props.current_blame_signature = self.blame.query_line(line)
-                self.document_ctx.props.have_current_blame_signature = self.document_ctx.props.current_blame_signature is not None
-                self.blame_update_routine = None
-            self.blame_update_routine = run_async(retrieve_blame())
+                async def retrieve_blame():
+                    if self.blame_needs_update:
+                        bytes = GLib.Bytes.new(self.buffer.props.text.encode())
+                        await self.blame.update(bytes)
+                        self.blame_needs_update = False
+                    if not self.blame:
+                        self.blame_update_routine = None
+                        return
+                    buffer = self.sourceview.props.buffer
+                    insert = buffer.get_insert()
+                    insert_iter = buffer.get_iter_at_mark(insert)
+                    line = insert_iter.get_line()
+                    self.document_ctx.props.current_blame_signature = self.blame.query_line(line)
+                    self.document_ctx.props.have_current_blame_signature = self.document_ctx.props.current_blame_signature is not None
+                    self.blame_update_routine = None
+                self.blame_update_routine = run_async(retrieve_blame())
+
+            if self.blame_update_timeout > 0:
+                GLib.Source.remove(self.blame_update_timeout)
+                self.blame_update_timeout = 0
+            if self.blame_needs_update:
+                self.blame_update_timeout = GLib.timeout_add(1000, idle)
+            else:
+                idle()
 
     def _dark_mode_changed_cb(self, style_manager, pspec):
         self._style_sourceview()
