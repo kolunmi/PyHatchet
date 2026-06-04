@@ -80,6 +80,10 @@ class HatchetSourceView(Adw.Bin):
         super().do_dispose()
 
     def _reset(self):
+        if self.document_ctx:
+            self.document_ctx.props.current_blame_signature = None
+            self.document_ctx.props.have_current_blame_signature = False
+
         try:
             if self.buffer:
                 self.buffer.disconnect_by_func(self._contents_change_cb)
@@ -87,9 +91,11 @@ class HatchetSourceView(Adw.Bin):
         except Exception:
             pass
 
-        if self.document_ctx:
-            self.document_ctx.props.current_blame_signature = None
-            self.document_ctx.props.have_current_blame_signature = False
+        try:
+            if self.blame_update_routine:
+                self.blame_update_routine.cancel()
+        except Exception:
+            pass
 
         self.overlay_cursor = None
         self.buffer = None
@@ -97,6 +103,7 @@ class HatchetSourceView(Adw.Bin):
         self.mark_region_iter = None
         self.blame = None
         self.blame_needs_update = False
+        self.blame_update_routine = None
 
     def _activate_mark_region(self):
         if not self.sourceview:
@@ -527,18 +534,22 @@ class HatchetSourceView(Adw.Bin):
         self.overlay_cursor.props.width_request = max(insert_location.width, 4)
         self.overlay_cursor.props.height_request = insert_location.height
 
-        if self.blame:
-            line = insert_iter.get_line()
+        if self.blame and not self.blame_update_routine:
             async def retrieve_blame():
                 if self.blame_needs_update:
                     bytes = GLib.Bytes.new(self.buffer.props.text.encode())
                     await self.blame.update(bytes)
                     self.blame_needs_update = False
-                if not self.blame or not self.document_ctx:
+                if not self.blame:
                     return
+                buffer = self.sourceview.props.buffer
+                insert = buffer.get_insert()
+                insert_iter = buffer.get_iter_at_mark(insert)
+                line = insert_iter.get_line()
                 self.document_ctx.props.current_blame_signature = self.blame.query_line(line)
                 self.document_ctx.props.have_current_blame_signature = self.document_ctx.props.current_blame_signature is not None
-            run_async(retrieve_blame())
+                self.blame_update_routine = None
+            self.blame_update_routine = run_async(retrieve_blame())
 
     def _dark_mode_changed_cb(self, style_manager, pspec):
         self._style_sourceview()
