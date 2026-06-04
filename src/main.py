@@ -36,7 +36,7 @@ from gi.events import GLibEventLoopPolicy
 from .util import run_async, item_future
 from .context import HatchetContext, HatchetShortcuts
 from .window import HatchetWindow
-from .emacs import bind_emacs_base, bind_emacs_secondary
+from .emacs import bind_emacs_base, bind_emacs_secondary, bind_emacs_special
 
 class HatchetApplication(Adw.Application):
     """The main application singleton class."""
@@ -64,6 +64,10 @@ class HatchetApplication(Adw.Application):
         secondary_shortcuts = HatchetShortcuts.new_with_stores()
         bind_emacs_secondary(secondary_shortcuts)
         self.keymaps["secondary"] = secondary_shortcuts
+
+        special_shortcuts = HatchetShortcuts.new_with_stores()
+        bind_emacs_special(special_shortcuts)
+        self.keymaps["special"] = special_shortcuts
 
         shortcuts = HatchetShortcuts.new_with_stores()
         shortcuts.apply(base_shortcuts)

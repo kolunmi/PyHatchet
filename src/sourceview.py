@@ -63,6 +63,8 @@ class HatchetSourceView(Adw.Bin):
         self.create_action(action_group, "mark-next-pair", self.action_mark_next_pair, None)
         self.create_action(action_group, "mark-prev-pair", self.action_mark_prev_pair, None)
         self.create_action(action_group, "swap-around-mark-region", self.action_swap_around_mark_region, None)
+        self.create_action(action_group, "beginning-of-document", self.action_beginning_of_document, None)
+        self.create_action(action_group, "end-of-document", self.action_end_of_document, None)
         self.insert_action_group("sourceview", action_group)
 
         shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.shortcuts.sourceview)
@@ -505,6 +507,22 @@ class HatchetSourceView(Adw.Bin):
 
     def action_swap_around_mark_region(self, action_name, params):
         self._swap_around_mark_region()
+
+    def action_beginning_of_document(self, action_name, params):
+        if not self.sourceview:
+            return
+        buffer = self.sourceview.props.buffer
+        iter = buffer.get_start_iter()
+        buffer.place_cursor(iter)
+        self.sourceview.jump_to_iter(iter, 0.0, False, 0.0, 0.0)
+
+    def action_end_of_document(self, action_name, params):
+        if not self.sourceview:
+            return
+        buffer = self.sourceview.props.buffer
+        iter = buffer.get_end_iter()
+        buffer.place_cursor(iter)
+        self.sourceview.jump_to_iter(iter, 0.0, False, 0.0, 0.0)
 
     def create_action(self, group, name, callback, params):
         if params:
