@@ -725,7 +725,7 @@ class HatchetSourceView(Adw.Bin):
         if not self.sourceview:
             return
 
-        self.form = self._open_object_form_inner(object)
+        self.form = self._open_object_form_inner(object, 0)
 
         buffer = self.sourceview.props.buffer
         buffer.props.text = ""
@@ -743,11 +743,19 @@ class HatchetSourceView(Adw.Bin):
             self.form_shortcuts.props.propagation_phase = Gtk.PropagationPhase.CAPTURE
             self.add_controller(self.form_shortcuts)
 
-    def _open_object_form_inner(self, object):
+    def _open_object_form_inner(self, object, level, parents=set()):
+        if object in parents:
+            return None
+        parents |= {object}
+
         if isinstance(object, Gio.ListModel):
             inner = []
             for item in object:
-                inner.append(FormNode.new(value=item, inner=self._open_object_form_inner(item), folded=True))
+                recurse_inner = self._open_object_form_inner(item, level + 1, parents=parents)
+                if recurse_inner:
+                    inner.append(FormNode.new(value=item, inner=recurse_inner, folded=level>0))
+                else:
+                    parents |= {item}
             return inner
         else:
             inner = []
@@ -758,13 +766,16 @@ class HatchetSourceView(Adw.Bin):
                 except:
                     continue
                 if isinstance(value, GObject.Object):
-                    tmp = self._open_object_form_inner(value)
+                    recurse_inner = self._open_object_form_inner(value, level + 1, parents=parents)
                 else:
                     if isinstance(value, GLib.DateTime):
-                        tmp = value.format("%x")
+                        recurse_inner = value.format("%x")
                     else:
-                        tmp = str(value)
-                inner.append(FormNode.new(name=prop.name, value=value, inner=tmp, folded=isinstance(value, Gio.ListModel)))
+                        recurse_inner = str(value)
+                if recurse_inner:
+                    inner.append(FormNode.new(name=prop.name, value=value, inner=recurse_inner, folded=isinstance(value, Gio.ListModel)))
+                else:
+                    parents |= {value}
             return inner
 
     def _render_form(self, buffer, form, level):
