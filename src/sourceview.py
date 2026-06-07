@@ -717,7 +717,7 @@ class HatchetSourceView(Adw.Bin):
         buffer.props.text = ""
         self.form_ordered = []
         self.form_lines = []
-        self._render_form(buffer, self.form)
+        self._render_form(buffer, self.form, 0)
 
         start_iter = buffer.get_start_iter()
         buffer.place_cursor(start_iter)
@@ -732,22 +732,28 @@ class HatchetSourceView(Adw.Bin):
     def _open_object_form_inner(self, object):
         if isinstance(object, Gio.ListModel):
             inner = []
-            for i, item in enumerate(object):
-                inner.append(FormNode.new(name=str(i), value=item, inner=self._open_object_form_inner(item)))
+            for item in object:
+                inner.append(FormNode.new(value=item, inner=self._open_object_form_inner(item), folded=True))
             return inner
         else:
             inner = []
             props = object.list_properties()
             for prop in props:
-                value = object.get_property(prop.name)
+                try:
+                    value = object.get_property(prop.name)
+                except:
+                    continue
                 if isinstance(value, GObject.Object):
-                    inner = self._open_object_form_inner(value)
-                    inner.append(FormNode.new(name=prop.name, value=value, inner=inner))
+                    tmp = self._open_object_form_inner(value)
                 else:
-                    inner.append(FormNode.new(name=prop.name, value=value, inner=str(value)))
+                    if isinstance(value, GLib.DateTime):
+                        tmp = value.format("%x")
+                    else:
+                        tmp = str(value)
+                inner.append(FormNode.new(name=prop.name, value=value, inner=tmp, folded=isinstance(value, Gio.ListModel)))
             return inner
 
-    def _render_form(self, buffer, form):
+    def _render_form(self, buffer, form, level):
         for node in form:
             node.index = len(self.form_ordered)
             self.form_ordered.append(node)
@@ -756,17 +762,23 @@ class HatchetSourceView(Adw.Bin):
             if node.folded:
                 if node.name:
                     buffer.insert(buffer.get_end_iter(), f"{node.name}/\n")
+                else:
+                    buffer.insert(buffer.get_end_iter(), f"/\n")
             else:
                 if isinstance(node.inner, list):
                     if node.name:
                         buffer.insert(buffer.get_end_iter(), f"{node.name}:")
+                    else:
+                        buffer.insert(buffer.get_end_iter(), f"-")
                     buffer.insert(buffer.get_end_iter(), "\n")
-                    self._render_form(buffer, node.inner)
+                    self._render_form(buffer, node.inner, level + 1)
                 else:
                     if node.name:
                         buffer.insert(buffer.get_end_iter(), f"{node.name}: {node.inner}\n")
                     else:
                         buffer.insert(buffer.get_end_iter(), f"{node.inner}\n")
+            if level == 0:
+                buffer.insert(buffer.get_end_iter(), "\n")
             node.finish_line = buffer.get_end_iter().get_line()
 
             if node.start_line >= len(self.form_lines):
@@ -826,7 +838,7 @@ class HatchetSourceView(Adw.Bin):
         buffer.props.text = ""
         self.form_ordered = []
         self.form_lines = []
-        self._render_form(buffer, self.form)
+        self._render_form(buffer, self.form, 0)
         self.sourceview.props.vadjustment.emit("value-changed")
 
         _, new_iter = buffer.get_iter_at_line(node.start_line)

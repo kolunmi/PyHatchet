@@ -115,3 +115,13 @@ class HatchetDocumentContext(GObject.Object):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+class HatchetGitForm(GObject.Object):
+    __gtype_name__ = __qualname__
+
+    recent_commits = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE)
+    status = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE)
+    tip = GObject.Property(type=Foundry.VcsCommit, default=None, flags=GObject.ParamFlags.READWRITE)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)

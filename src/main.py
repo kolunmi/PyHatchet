@@ -35,7 +35,7 @@ from gi.repository import GLib, Gio, Gtk, Adw, Dex, Foundry, FoundryGtk, Foundry
 from gi.events import GLibEventLoopPolicy
 
 from .util import run_async, item_future
-from .context import HatchetContext, HatchetShortcuts
+from .context import HatchetContext, HatchetShortcuts, HatchetGitForm
 from .window import HatchetWindow
 from .emacs import bind_emacs_base, bind_emacs_secondary, bind_emacs_special
 
@@ -192,8 +192,14 @@ class HatchetApplication(Adw.Application):
                 git = foundry.props.vcs_manager.find_vcs("git")
                 if not git:
                     return
+                status = await git.list_status()
                 tip = await git.load_tip()
-                graph = await git.load_graph(tip, None, 0)
+                recent_commits = await git.load_graph(tip, None, 10)
+                form = HatchetGitForm(
+                    status=status,
+                    tip=tip,
+                    recent_commits=recent_commits,
+                )
 
                 gfile = Gio.File.new_for_path(Path(self.tmp_dir, f"{project_id}-git.txt"))
                 try:
@@ -209,7 +215,7 @@ class HatchetApplication(Adw.Application):
                 ).to_asyncio()
                 win = self.choose_window()
                 if win:
-                    win.open_document(document, foundry, form=graph)
+                    win.open_document(document, foundry, form=form)
 
             except GLib.Error as err:
                 self.show_error("Failed to open document", str(err))
