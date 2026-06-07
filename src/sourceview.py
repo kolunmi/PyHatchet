@@ -692,6 +692,15 @@ class HatchetSourceView(Adw.Bin):
         self.buffer.connect("changed", self._contents_change_cb)
         self.buffer.connect("notify::cursor-position", self._cursor_position_change_cb)
         self.buffer.create_tag(
+            "form-key",
+            weight=700,
+        )
+        self.buffer.create_tag(
+            "form-struct-key",
+            weight=700,
+            underline=Pango.Underline.SINGLE,
+        )
+        self.buffer.create_tag(
             "form-selected",
             foreground="black",
             background="goldenrod",
@@ -772,16 +781,15 @@ class HatchetSourceView(Adw.Bin):
             else:
                 if isinstance(node.inner, list):
                     if node.name:
-                        buffer.insert(buffer.get_end_iter(), f"{node.name}:")
+                        buffer.insert_with_tags_by_name(buffer.get_end_iter(), f"{node.name}:", "form-struct-key")
                     else:
                         buffer.insert(buffer.get_end_iter(), f"-")
                     buffer.insert(buffer.get_end_iter(), "\n")
                     self._render_form(buffer, node.inner, level + 1)
                 else:
                     if node.name:
-                        buffer.insert(buffer.get_end_iter(), f"{node.name}: {node.inner}\n")
-                    else:
-                        buffer.insert(buffer.get_end_iter(), f"{node.inner}\n")
+                        buffer.insert_with_tags_by_name(buffer.get_end_iter(), f"{node.name}: ", "form-key")
+                    buffer.insert(buffer.get_end_iter(), f"{node.inner}\n")
             if level == 0:
                 buffer.insert(buffer.get_end_iter(), "\n")
             node.finish_line = buffer.get_end_iter().get_line()
