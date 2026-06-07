@@ -29,6 +29,7 @@ class HatchetShortcuts(GObject.Object):
     window = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE)
     picker = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE)
     sourceview = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE)
+    form = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -38,6 +39,7 @@ class HatchetShortcuts(GObject.Object):
             window=Gio.ListStore.new(Gtk.Shortcut),
             picker=Gio.ListStore.new(Gtk.Shortcut),
             sourceview=Gio.ListStore.new(Gtk.Shortcut),
+            form=Gio.ListStore.new(Gtk.Shortcut),
         )
 
     def apply(self, other):
@@ -46,6 +48,7 @@ class HatchetShortcuts(GObject.Object):
         copy(self.window, other.window)
         copy(self.picker, other.picker)
         copy(self.sourceview, other.sourceview)
+        copy(self.form, other.form)
 
 class HatchetContext(GObject.Object):
     __gtype_name__ = __qualname__
@@ -82,7 +85,7 @@ class HatchetContext(GObject.Object):
             parent_path = Path(path)
             while parent_path != Path('/'):
                 if parent_path == project_directory_path:
-                    return foundry
+                    return foundry, foundry.props.project_directory.get_path().replace("/", "%")
                 parent_path = parent_path.parent
 
         try:
@@ -94,9 +97,10 @@ class HatchetContext(GObject.Object):
                 None,
             )
             self.foundrys.append(Foundry.FutureItem.new(construct_future))
-            return await construct_future
+            foundry = await construct_future
+            return foundry, foundry.props.project_directory.get_path().replace("/", "%")
         except Exception:
-            return await item_future(self.user_foundry)
+            return await item_future(self.user_foundry), "USER"
 
 class HatchetDocumentContext(GObject.Object):
     __gtype_name__ = __qualname__

@@ -23,6 +23,33 @@ from gi.repository import GLib, GObject, Gio, Gtk, Pango, Gdk, GtkSource, Adw, D
 from .util import run_async, item_future
 from .context import HatchetContext, HatchetDocumentContext
 
+class FormNode:
+    index = -1
+    name = None
+    value = None
+    inner = None
+    start_line = 0
+    finish_line = 0
+    folded = False
+
+    def new(index=-1,
+            name=None,
+            value=None,
+            inner=None,
+            start_line=0,
+            finish_line=0,
+            folded=False,
+            ):
+        self = FormNode()
+        self.index = index
+        self.name = name
+        self.value = value
+        self.inner = inner
+        self.start_line = start_line
+        self.finish_line = finish_line
+        self.folded = folded
+        return self
+
 @Gtk.Template(resource_path='/net/kolunmi/Hatchet/sourceview.ui')
 class HatchetSourceView(Adw.Bin):
     __gtype_name__ = __qualname__
@@ -31,7 +58,6 @@ class HatchetSourceView(Adw.Bin):
     document_ctx = GObject.Property(type=HatchetDocumentContext, default=None, flags=GObject.ParamFlags.READWRITE)
 
     content = Gtk.Template.Child()
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -66,10 +92,15 @@ class HatchetSourceView(Adw.Bin):
         self.create_action(action_group, "beginning-of-document", self.action_beginning_of_document, None)
         self.create_action(action_group, "end-of-document", self.action_end_of_document, None)
         self.insert_action_group("sourceview", action_group)
-
         shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.shortcuts.sourceview)
         shortcut_controller.props.propagation_phase = Gtk.PropagationPhase.CAPTURE
         self.add_controller(shortcut_controller)
+
+        action_group = Gio.SimpleActionGroup.new()
+        self.create_action(action_group, "next-item", self.action_form_next_item, None)
+        self.create_action(action_group, "prev-item", self.action_form_prev_item, None)
+        self.create_action(action_group, "toggle-fold", self.action_form_toggle_fold, None)
+        self.insert_action_group("form", action_group)
 
         self.style_mgr = Adw.StyleManager.get_default()
         self.style_mgr.connect("notify::dark", self._dark_mode_changed_cb)
@@ -96,6 +127,10 @@ class HatchetSourceView(Adw.Bin):
             if self.blame_update_timeout > 0:
                 GLib.Source.remove(self.blame_update_timeout)
 
+            if self.form_shortcuts:
+                self.remove_controller(self.form_shortcuts)
+
+
         self.overlay_cursor = None
         self.buffer = None
         self.last_insert_iter = None
@@ -104,6 +139,12 @@ class HatchetSourceView(Adw.Bin):
         self.blame_needs_update = False
         self.blame_update_routine = None
         self.blame_update_timeout = 0
+
+        self.form = None
+        self.form_ordered = None
+        self.form_lines = None
+        self.form_shortcuts = None
+        self.form_highlight_bounds = None
 
     def _activate_mark_region(self):
         if not self.sourceview:
@@ -359,7 +400,7 @@ class HatchetSourceView(Adw.Bin):
         self.sourceview.jump_to_iter(iter, 0.0, False, 0.0, 0.0)
 
     def action_kill_word(self, action_name, params):
-        if not self.sourceview:
+        if not self.sourceview or not self.sourceview.props.editable:
             return
         buffer = self.sourceview.props.buffer
         mark = buffer.get_insert()
@@ -369,7 +410,7 @@ class HatchetSourceView(Adw.Bin):
         buffer.delete_interactive(start, end, True)
 
     def action_backward_kill_word(self, action_name, params):
-        if not self.sourceview:
+        if not self.sourceview or not self.sourceview.props.editable:
             return
         buffer = self.sourceview.props.buffer
         mark = buffer.get_insert()
@@ -379,7 +420,7 @@ class HatchetSourceView(Adw.Bin):
         buffer.delete_interactive(start, end, True)
 
     def action_kill_line(self, action_name, params):
-        if not self.sourceview:
+        if not self.sourceview or not self.sourceview.props.editable:
             return
         buffer = self.sourceview.props.buffer
         mark = buffer.get_insert()
@@ -390,7 +431,7 @@ class HatchetSourceView(Adw.Bin):
         buffer.delete_interactive(start, end, True)
 
     def action_kill_line_rest(self, action_name, params):
-        if not self.sourceview:
+        if not self.sourceview or not self.sourceview.props.editable:
             return
         buffer = self.sourceview.props.buffer
         mark = buffer.get_insert()
@@ -423,7 +464,7 @@ class HatchetSourceView(Adw.Bin):
         self._deactivate_mark_region()
 
     def action_kill_region(self, action_name, params):
-        if not self.sourceview:
+        if not self.sourceview or not self.sourceview.props.editable:
             return
         if not self.mark_region_iter:
             return
@@ -445,7 +486,7 @@ class HatchetSourceView(Adw.Bin):
 
     def action_paste(self, action_name, params):
         async def routine():
-            if not self.sourceview:
+            if not self.sourceview or not self.sourceview.props.editable:
                 return
             clipboard = Gdk.Display.get_default().get_clipboard()
             text = await clipboard.read_text_async()
@@ -457,13 +498,13 @@ class HatchetSourceView(Adw.Bin):
         run_async(routine())
 
     def action_undo(self, action_name, params):
-        if not self.sourceview:
+        if not self.sourceview or not self.sourceview.props.editable:
             return
         buffer = self.sourceview.props.buffer
         buffer.undo()
 
     def action_insert_newline(self, action_name, params):
-        if not self.sourceview:
+        if not self.sourceview or not self.sourceview.props.editable:
             return
         buffer = self.sourceview.props.buffer
         insert = buffer.get_insert()
@@ -580,6 +621,9 @@ class HatchetSourceView(Adw.Bin):
             else:
                 idle()
 
+        if self.form:
+            self._highlight_form()
+
     def _dark_mode_changed_cb(self, style_manager, pspec):
         self._style_sourceview()
 
@@ -595,6 +639,28 @@ class HatchetSourceView(Adw.Bin):
         style_scheme_mgr = GtkSource.StyleSchemeManager.get_default()
         scheme = style_scheme_mgr.get_scheme(id)
         self.sourceview.props.buffer.props.style_scheme = scheme
+
+    def _highlight_form(self):
+        buffer = self.sourceview.props.buffer
+        mark = buffer.get_insert()
+        iter = buffer.get_iter_at_mark(mark)
+        line = iter.get_line()
+
+        if self.form_highlight_bounds:
+            start_line, finish_line = self.form_highlight_bounds
+            _, start_iter = buffer.get_iter_at_line(start_line)
+            _, end_iter = buffer.get_iter_at_line(finish_line)
+            buffer.remove_tag_by_name("form-selected", start_iter, end_iter)
+            self.form_highlight_bounds = None
+
+        if line >= len(self.form_lines):
+            return
+        node = self.form_lines[line][0]
+
+        _, start_iter = buffer.get_iter_at_line(node.start_line)
+        _, end_iter = buffer.get_iter_at_line(node.finish_line)
+        buffer.apply_tag_by_name("form-selected", start_iter, end_iter)
+        self.form_highlight_bounds = (node.start_line, node.finish_line)
 
     def do_grab_focus(self):
         if not self.sourceview:
@@ -625,6 +691,7 @@ class HatchetSourceView(Adw.Bin):
         self.buffer = self.sourceview.props.buffer
         self.buffer.connect("changed", self._contents_change_cb)
         self.buffer.connect("notify::cursor-position", self._cursor_position_change_cb)
+        self.buffer.create_tag("form-selected", background="#ff00ff44")
         self._style_sourceview()
         self.content.set_child(self.sourceview)
 
@@ -632,7 +699,137 @@ class HatchetSourceView(Adw.Bin):
             async def make_blame():
                 if not self.document_ctx.git:
                     return
-                vcs_file = await self.document_ctx.git.find_file(self.document_ctx.document.props.file)
-                self.blame = await self.document_ctx.git.blame(vcs_file)
+                try:
+                    vcs_file = await self.document_ctx.git.find_file(self.document_ctx.document.props.file)
+                    self.blame = await self.document_ctx.git.blame(vcs_file)
+                except:
+                    self.blame = None
                 self.blame_update_routine = None
             self.blame_update_routine = run_async(make_blame())
+
+    def open_object_form(self, object):
+        if not self.sourceview:
+            return
+
+        self.form = self._open_object_form_inner(object)
+
+        buffer = self.sourceview.props.buffer
+        buffer.props.text = ""
+        self.form_ordered = []
+        self.form_lines = []
+        self._render_form(buffer, self.form)
+
+        start_iter = buffer.get_start_iter()
+        buffer.place_cursor(start_iter)
+        self.sourceview.jump_to_iter(start_iter, 0.0, False, 0.0, 0.0)
+
+        self.sourceview.props.editable = False
+        if not self.form_shortcuts:
+            self.form_shortcuts = Gtk.ShortcutController.new_for_model(self.context.shortcuts.form)
+            self.form_shortcuts.props.propagation_phase = Gtk.PropagationPhase.CAPTURE
+            self.add_controller(self.form_shortcuts)
+
+    def _open_object_form_inner(self, object):
+        if isinstance(object, Gio.ListModel):
+            inner = []
+            for i, item in enumerate(object):
+                inner.append(FormNode.new(name=str(i), value=item, inner=self._open_object_form_inner(item)))
+            return inner
+        else:
+            inner = []
+            props = object.list_properties()
+            for prop in props:
+                value = object.get_property(prop.name)
+                if isinstance(value, GObject.Object):
+                    inner = self._open_object_form_inner(value)
+                    inner.append(FormNode.new(name=prop.name, value=value, inner=inner))
+                else:
+                    inner.append(FormNode.new(name=prop.name, value=value, inner=str(value)))
+            return inner
+
+    def _render_form(self, buffer, form):
+        for node in form:
+            node.index = len(self.form_ordered)
+            self.form_ordered.append(node)
+
+            node.start_line = buffer.get_end_iter().get_line()
+            if node.folded:
+                if node.name:
+                    buffer.insert(buffer.get_end_iter(), f"{node.name}/\n")
+            else:
+                if isinstance(node.inner, list):
+                    if node.name:
+                        buffer.insert(buffer.get_end_iter(), f"{node.name}:")
+                    buffer.insert(buffer.get_end_iter(), "\n")
+                    self._render_form(buffer, node.inner)
+                else:
+                    if node.name:
+                        buffer.insert(buffer.get_end_iter(), f"{node.name}: {node.inner}\n")
+                    else:
+                        buffer.insert(buffer.get_end_iter(), f"{node.inner}\n")
+            node.finish_line = buffer.get_end_iter().get_line()
+
+            if node.start_line >= len(self.form_lines):
+                for i in range(node.start_line - len(self.form_lines)):
+                    self.form_lines.append([])
+            for i in range(node.start_line, node.finish_line):
+                if i >= len(self.form_lines):
+                    self.form_lines.append([node])
+                else:
+                    self.form_lines[i].append(node)
+
+    def _form_change_item(self, offset):
+        if not self.form:
+            return
+        buffer = self.sourceview.props.buffer
+        mark = buffer.get_insert()
+        iter = buffer.get_iter_at_mark(mark)
+        line = iter.get_line()
+
+        if line >= len(self.form_lines):
+            return
+        node = self.form_lines[line][0]
+        if node.index + offset >= len(self.form_ordered):
+            return
+        new_node = self.form_ordered[node.index + offset]
+
+        _, new_iter = buffer.get_iter_at_line(new_node.start_line)
+        while new_iter.get_line() > 0 and new_iter.get_char() == "\n":
+            if offset < 0:
+                new_iter.backward_line()
+            else:
+                new_iter.forward_line()
+
+        buffer.place_cursor(new_iter)
+        self.sourceview.jump_to_iter(new_iter, 0.0, False, 0.0, 0.0)
+
+    def action_form_next_item(self, action_name, params):
+        self._form_change_item(1)
+
+    def action_form_prev_item(self, action_name, params):
+        self._form_change_item(-1)
+
+    def action_form_toggle_fold(self, action_name, params):
+        if not self.form:
+            return
+        buffer = self.sourceview.props.buffer
+        mark = buffer.get_insert()
+        iter = buffer.get_iter_at_mark(mark)
+        line = iter.get_line()
+
+        if line >= len(self.form_lines):
+            return
+
+        node = self.form_lines[line][0]
+        node.folded = not node.folded
+
+        buffer.props.text = ""
+        self.form_ordered = []
+        self.form_lines = []
+        self._render_form(buffer, self.form)
+        self.sourceview.props.vadjustment.emit("value-changed")
+
+        _, new_iter = buffer.get_iter_at_line(node.start_line)
+        buffer.place_cursor(new_iter)
+        self.sourceview.scroll_to_iter(new_iter, 0.0, False, 0.0, 0.0)
+        self.sourceview.props.vadjustment.emit("value-changed")

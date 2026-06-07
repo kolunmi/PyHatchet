@@ -77,6 +77,10 @@ def bind_emacs_base(shortcuts):
     add_key(shortcuts.sourceview, "<primary><alt>n", "sourceview.next-pair")
     add_key(shortcuts.sourceview, "<primary><alt>space", "sourceview.mark-next-pair")
 
+    add_key(shortcuts.form, "n", "form.next-item")
+    add_key(shortcuts.form, "p", "form.prev-item")
+    add_key(shortcuts.form, "Tab", "form.toggle-fold")
+
 def bind_emacs_secondary(shortcuts):
     add_key(shortcuts.window, "<primary>g", "app.next-keymap", str_arg("base"))
     add_key(shortcuts.window, "<primary>f", "app.open-document", str_arg(""))
@@ -88,6 +92,7 @@ def bind_emacs_secondary(shortcuts):
 def bind_emacs_special(shortcuts):
     add_key(shortcuts.window, "<primary>g", "app.next-keymap", str_arg("base"))
     add_key(shortcuts.window, "b", "app.switch-document", str_arg(""))
+    add_key(shortcuts.window, "v", "win.open-git")
 
     add_key(shortcuts.sourceview, "p", "sourceview.beginning-of-document")
     add_key(shortcuts.sourceview, "n", "sourceview.end-of-document")

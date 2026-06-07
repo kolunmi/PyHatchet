@@ -20,6 +20,7 @@
 import sys
 import asyncio
 import gi
+from pathlib import Path
 
 from gettext import gettext as _
 
@@ -53,6 +54,10 @@ class HatchetApplication(Adw.Application):
         self.create_action('open-document', self.on_open_document_action, "s", arg_hint=Gio.File)
         self.create_action('switch-document', self.on_switch_document_action, "s", arg_hint=Foundry.TextDocument)
         self.create_action('save-document', self.on_save_document_action, "s", arg_hint=Foundry.TextDocument)
+        self.create_action('open-git-for-document', self.on_open_git_for_document, "s", arg_hint=Foundry.TextDocument)
+
+        self.tmp_dir = Path(GLib.get_tmp_dir(), "hatchet")
+        self.tmp_dir.mkdir(parents=True, exist_ok=True)
 
         self.keymaps = {}
         self.current_keymap = "base"
@@ -133,7 +138,7 @@ class HatchetApplication(Adw.Application):
             return
 
         async def action(self):
-            foundry = await self.context.get_foundry_for_path(path)
+            foundry, _ = await self.context.get_foundry_for_path(path)
             text_mgr = foundry.dup_text_manager()
             try:
                 document = await text_mgr.load(
@@ -164,7 +169,7 @@ class HatchetApplication(Adw.Application):
     def on_save_document_action(self, widget, params):
         path = params.get_string()
         async def action(self):
-            foundry = await self.context.get_foundry_for_path(path)
+            foundry, _ = await self.context.get_foundry_for_path(path)
             text_mgr = foundry.dup_text_manager()
             try:
                 document = await text_mgr.load(
@@ -176,6 +181,40 @@ class HatchetApplication(Adw.Application):
             except GLib.Error as err:
                 self.show_error("Failed to save document", str(err))
         run_async(action(self))
+
+    def on_open_git_for_document(self, widget, params):
+        path = params.get_string()
+
+        async def action(self):
+            foundry, project_id = await self.context.get_foundry_for_path(path)
+            text_mgr = foundry.dup_text_manager()
+            try:
+                git = foundry.props.vcs_manager.find_vcs("git")
+                if not git:
+                    return
+                tip = await git.load_tip()
+                graph = await git.load_graph(tip, None, 0)
+
+                gfile = Gio.File.new_for_path(Path(self.tmp_dir, f"{project_id}-git.txt"))
+                try:
+                    stream = await Dex.file_create(gfile, Gio.FileCreateFlags.REPLACE_DESTINATION, GLib.PRIORITY_DEFAULT_IDLE)
+                    await Dex.output_stream_close(stream, GLib.PRIORITY_DEFAULT_IDLE)
+                except Exception:
+                    pass
+
+                document = await text_mgr.load(
+                    gfile,
+                    Foundry.Operation.new(),
+                    None,
+                ).to_asyncio()
+                win = self.choose_window()
+                if win:
+                    win.open_document(document, foundry, form=graph)
+
+            except GLib.Error as err:
+                self.show_error("Failed to open document", str(err))
+        run_async(action(self))
+
 
     def create_action(self, name, callback, params, shortcuts=None, arg_hint=None):
         """Add an application action.

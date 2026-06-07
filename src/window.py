@@ -45,6 +45,7 @@ class HatchetWindow(Adw.ApplicationWindow):
         self.create_action(action_group, "show-error", self.action_show_error, "(ss)")
         self.create_action(action_group, "open-action-picker", self.action_open_action_picker, "s")
         self.create_action(action_group, "save-document", self.action_save_document, None)
+        self.create_action(action_group, "open-git", self.action_open_git, None)
         self.insert_action_group("win", action_group)
 
         shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.shortcuts.window)
@@ -93,6 +94,12 @@ class HatchetWindow(Adw.ApplicationWindow):
         variant = GLib.Variant("s", self.document_ctx.document.props.file.get_path())
         self.activate_action('app.save-document', variant)
 
+    def action_open_git(self, action_name, params):
+        if not self.document_ctx:
+            return
+        variant = GLib.Variant("s", self.document_ctx.document.props.file.get_path())
+        self.activate_action('app.open-git-for-document', variant)
+
     def picker_selection_made_cb(self, ret_object, picker):
         if not self.picker:
             return
@@ -116,7 +123,7 @@ class HatchetWindow(Adw.ApplicationWindow):
         )
         self.toasts.add_toast(toast)
 
-    def open_document(self, document, foundry):
+    def open_document(self, document, foundry, form=None):
         if self.document_ctx and self.document_ctx.document:
             self.document_ctx.document.disconnect_by_func(self._on_active_document_saved)
         document.connect("saved", self._on_active_document_saved)
@@ -130,6 +137,8 @@ class HatchetWindow(Adw.ApplicationWindow):
         )
 
         self.sourceview.open_document(self.document_ctx)
+        if form:
+            self.sourceview.open_object_form(form)
         self.sourceview.grab_focus()
 
     @Gtk.Template.Callback()
