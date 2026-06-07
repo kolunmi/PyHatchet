@@ -196,6 +196,7 @@ class HatchetApplication(Adw.Application):
                 tip = await git.load_tip()
                 recent_commits = await git.load_graph(tip, None, 10)
                 form = HatchetGitForm(
+                    active_branch=git.props.branch_name,
                     status=status,
                     tip=tip,
                     recent_commits=recent_commits,

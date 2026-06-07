@@ -119,6 +119,7 @@ class HatchetDocumentContext(GObject.Object):
 class HatchetGitForm(GObject.Object):
     __gtype_name__ = __qualname__
 
+    active_branch = GObject.Property(type=str, default=None, flags=GObject.ParamFlags.READWRITE)
     recent_commits = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE)
     status = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE)
     tip = GObject.Property(type=Foundry.VcsCommit, default=None, flags=GObject.ParamFlags.READWRITE)
