@@ -691,7 +691,12 @@ class HatchetSourceView(Adw.Bin):
         self.buffer = self.sourceview.props.buffer
         self.buffer.connect("changed", self._contents_change_cb)
         self.buffer.connect("notify::cursor-position", self._cursor_position_change_cb)
-        self.buffer.create_tag("form-selected", background="#ff00ff44")
+        self.buffer.create_tag(
+            "form-selected",
+            foreground="black",
+            background="goldenrod",
+            weight=600,
+        )
         self._style_sourceview()
         self.content.set_child(self.sourceview)
 
