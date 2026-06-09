@@ -55,6 +55,7 @@ class HatchetApplication(Adw.Application):
         self.create_action('switch-document', self.on_switch_document_action, "s", arg_hint=Foundry.TextDocument)
         self.create_action('save-document', self.on_save_document_action, "s", arg_hint=Foundry.TextDocument)
         self.create_action('open-git-for-document', self.on_open_git_for_document, "s", arg_hint=Foundry.TextDocument)
+        self.create_action('open-documentation-for-document', self.on_open_documentation_for_document, "s", arg_hint=Foundry.TextDocument)
 
         self.tmp_dir = Path(GLib.get_tmp_dir(), "hatchet")
         self.tmp_dir.mkdir(parents=True, exist_ok=True)
@@ -222,6 +223,37 @@ class HatchetApplication(Adw.Application):
                 self.show_error("Failed to open document", str(err))
         run_async(action(self))
 
+    def on_open_documentation_for_document(self, widget, params):
+        path = params.get_string()
+
+        async def action(self):
+            foundry, project_id = await self.context.get_foundry_for_path(path)
+            text_mgr = foundry.dup_text_manager()
+            docs_mgr = foundry.dup_documentation_manager()
+            try:
+                model = await docs_mgr.list_bundles()
+                for doc in model:
+                    doc._form_ignore_props = ["context", "ref"]
+
+                gfile = Gio.File.new_for_path(Path(self.tmp_dir, f"{project_id}-docs.txt"))
+                try:
+                    stream = await Dex.file_create(gfile, Gio.FileCreateFlags.REPLACE_DESTINATION, GLib.PRIORITY_DEFAULT_IDLE)
+                    await Dex.output_stream_close(stream, GLib.PRIORITY_DEFAULT_IDLE)
+                except Exception:
+                    pass
+
+                document = await text_mgr.load(
+                    gfile,
+                    Foundry.Operation.new(),
+                    None,
+                ).to_asyncio()
+                win = self.choose_window()
+                if win:
+                    win.open_document(document, foundry, form=model)
+
+            except GLib.Error as err:
+                self.show_error("Failed to open document", str(err))
+        run_async(action(self))
 
     def create_action(self, name, callback, params, shortcuts=None, arg_hint=None):
         """Add an application action.

@@ -762,6 +762,11 @@ class HatchetSourceView(Adw.Bin):
             props = object.list_properties()
             for prop in props:
                 try:
+                    if prop.name in object._form_ignore_props:
+                        continue
+                except Exception:
+                    pass
+                try:
                     value = object.get_property(prop.name)
                 except:
                     continue
