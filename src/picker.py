@@ -32,12 +32,20 @@ class HatchetPicker(Adw.Bin):
     context = GObject.Property(type=HatchetContext, default=None, flags=GObject.ParamFlags.READWRITE)
     for_action = GObject.Property(type=str, default=None, flags=GObject.ParamFlags.READWRITE|GObject.ParamFlags.CONSTRUCT_ONLY)
     for_cwd = GObject.Property(type=str, default=None, flags=GObject.ParamFlags.READWRITE|GObject.ParamFlags.CONSTRUCT_ONLY)
+    for_group = GObject.Property(type=Gio.ActionGroup, default=None, flags=GObject.ParamFlags.READWRITE|GObject.ParamFlags.CONSTRUCT_ONLY)
+    for_model = GObject.Property(type=Gio.ListModel, default=None, flags=GObject.ParamFlags.READWRITE|GObject.ParamFlags.CONSTRUCT_ONLY)
 
     selection_made = GObject.Signal(
         name="selection-made",
         flags=GObject.SignalFlags.RUN_FIRST,
         return_type=None,
-        arg_types=[GObject.Object]
+        arg_types=[GObject.Object, int]
+    )
+    selection_changed = GObject.Signal(
+        name="selection-changed",
+        flags=GObject.SignalFlags.RUN_FIRST,
+        return_type=None,
+        arg_types=[int]
     )
 
     text_entry = Gtk.Template.Child()
@@ -64,12 +72,26 @@ class HatchetPicker(Adw.Bin):
         self.cwd = None
 
         if self.for_action:
-            app = Gio.Application.get_default()
+            if self.for_group:
+                app = self.for_group
+            else:
+                app = Gio.Application.get_default()
             self.action = app.lookup_action(self.for_action)
             try:
                 self.arg_hint = self.action._arg_hint
             except Exception:
                 self.arg_hint = None
+
+        if self.for_model:
+            cached = []
+            casefolded = []
+            for item in self.for_model:
+                string = item.get_string()
+                cached.append(string)
+                casefolded.append(string.casefold())
+            self.for_model_cached = cached
+            self.for_model_casefolded = casefolded
+
         self._build_selection()
 
     def action_next(self, action_name, params):
@@ -125,7 +147,7 @@ class HatchetPicker(Adw.Bin):
     def action_cancel(self, action_cancel, params):
         self.action = None
         self.arg_hint = None
-        self.emit("selection-made", None)
+        self.emit("selection-made", None, 0)
 
     def create_action(self, group, name, callback, params):
         if params:
@@ -136,10 +158,34 @@ class HatchetPicker(Adw.Bin):
         action.connect("activate", callback)
         group.add_action(action)
 
+    def _build_custom(self):
+        text = self.text_entry.props.text
+
+        if len(text) > 0:
+            casefolded = text.casefold()
+            filtered = []
+            for i, string in enumerate(self.for_model_casefolded):
+                if casefolded in string:
+                    filtered.append((self.for_model_cached[i], i))
+            # filtered.sort(key=lambda x: len(x[0]))
+            indices = []
+            for i in range(len(filtered)):
+                indices.append(filtered[i][1])
+                filtered[i] = filtered[i][0]
+        else:
+            indices = range(len(self.for_model_cached))
+            filtered = self.for_model_cached
+
+        self.custom_indices = indices
+        self.selection.set_model(Gtk.StringList.new(filtered))
+
     def _build_actions(self):
         text = self.text_entry.props.text
 
-        app = Gio.Application.get_default()
+        if self.for_group:
+            app = self.for_group
+        else:
+            app = Gio.Application.get_default()
         actions = app.list_actions()
 
         if len(text) > 0:
@@ -223,20 +269,27 @@ class HatchetPicker(Adw.Bin):
         run_async(routine(self))
 
     def _build_selection(self):
-        match self.arg_hint:
-            case Gio.File:
-                self._build_files()
-            case Foundry.TextDocument:
-                self._build_documents()
-            case _:
-                self._build_actions()
+        if self.for_model:
+            self._build_custom()
+        else:
+            match self.arg_hint:
+                case Gio.File:
+                    self._build_files()
+                case Foundry.TextDocument:
+                    self._build_documents()
+                case _:
+                    self._build_actions()
 
     def _select(self, pos):
         if pos >= self.selection.props.n_items:
             return
 
-        text = self.text_entry.get_text()
         item = self.selection[pos]
+        if self.for_model:
+            self.emit("selection-made", item, self.custom_indices[pos])
+            return
+
+        text = self.text_entry.get_text()
         input = item.get_string()
 
         ret_object = None
@@ -246,7 +299,10 @@ class HatchetPicker(Adw.Bin):
             case Foundry.TextDocument:
                 ret_object = Gio.File.new_for_path(Path(input))
             case _:
-                app = Gio.Application.get_default()
+                if self.for_group:
+                    app = self.for_group
+                else:
+                    app = Gio.Application.get_default()
                 self.action = app.lookup_action(input)
                 try:
                     self.arg_hint = self.action._arg_hint
@@ -263,14 +319,22 @@ class HatchetPicker(Adw.Bin):
             else:
                 variant = None
             self.action.activate(variant)
-            self.emit("selection-made", ret_object)
+            self.emit("selection-made", ret_object, pos)
 
         self.action = None
         self.arg_hint = None
 
+    def get_search_text(self):
+        return self.text_entry.props.text
+
     @Gtk.Template.Callback()
     def _text_changed_cb(self, text):
         self._build_selection()
+        try:
+            if self.for_model:
+                self.emit("selection-changed", self.custom_indices[self.selection.props.selected])
+        except Exception:
+            pass
 
     @Gtk.Template.Callback()
     def _text_activated_cb(self, text):
@@ -284,3 +348,11 @@ class HatchetPicker(Adw.Bin):
     @Gtk.Template.Callback()
     def _activated_cb(self, list_view, pos):
         self._select(self.selection.props.selected)
+
+    @Gtk.Template.Callback()
+    def _selection_changed_cb(self, model, pspec):
+        try:
+            if self.for_model:
+                self.emit("selection-changed", self.custom_indices[self.selection.props.selected])
+        except Exception:
+            pass

@@ -96,3 +96,4 @@ def bind_emacs_special(shortcuts):
 
     add_key(shortcuts.sourceview, "p", "sourceview.beginning-of-document")
     add_key(shortcuts.sourceview, "n", "sourceview.end-of-document")
+    add_key(shortcuts.sourceview, "s", "sourceview.search")

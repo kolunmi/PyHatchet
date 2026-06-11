@@ -1,17 +1,23 @@
-.picker {
-    padding: 8px;
-    background-color: lighter(var(--window-bg-color));
+.overlaid {
     border-radius: 8px;
     border-style: solid;
     border-color: var(--border-color);
     box-shadow: 0 0 3px 1px rgba(0.0,0.0,0.0,0.2);
 }
 
-.picker text {
-    font-size: larger;
+.picker {
+    padding: 8px;
+    background-color: lighter(var(--window-bg-color));
     font-family: monospace;
 }
 
+.picker listview {
+    background-color: lighter(var(--window-bg-color));
+    border-style: solid;
+    border-color: var(--border-color);
+    border-width: 1px;
+    font-size: smaller;
+}
 
 .status-bar {
     font-weight: bolder;

@@ -84,6 +84,7 @@ class HatchetWindow(Adw.ApplicationWindow):
             margin_top=30,
             margin_bottom=30,
         )
+        picker.add_css_class("overlaid")
         picker.connect("selection-made", self.picker_selection_made_cb)
         self.overlay.add_overlay(picker)
         self.picker = picker
@@ -100,7 +101,7 @@ class HatchetWindow(Adw.ApplicationWindow):
         variant = GLib.Variant("s", self.document_ctx.document.props.file.get_path())
         self.activate_action('app.open-git-for-document', variant)
 
-    def picker_selection_made_cb(self, ret_object, picker):
+    def picker_selection_made_cb(self, ret_object, picker, idx):
         if not self.picker:
             return
         self.overlay.remove_overlay(self.picker)

@@ -22,6 +22,7 @@ import asyncio
 from gi.repository import GLib, GObject, Gio, Gtk, Pango, Gdk, GtkSource, Adw, Dex, Foundry, FoundryGtk, FoundryAdw
 from .util import run_async, item_future
 from .context import HatchetContext, HatchetDocumentContext
+from .picker import HatchetPicker
 
 class FormNode:
     index = -1
@@ -57,7 +58,10 @@ class HatchetSourceView(Adw.Bin):
     context = GObject.Property(type=HatchetContext, default=None, flags=GObject.ParamFlags.READWRITE)
     document_ctx = GObject.Property(type=HatchetDocumentContext, default=None, flags=GObject.ParamFlags.READWRITE)
 
+    paned = Gtk.Template.Child()
+    overlay = Gtk.Template.Child()
     content = Gtk.Template.Child()
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -91,10 +95,11 @@ class HatchetSourceView(Adw.Bin):
         self.create_action(action_group, "swap-around-mark-region", self.action_swap_around_mark_region, None)
         self.create_action(action_group, "beginning-of-document", self.action_beginning_of_document, None)
         self.create_action(action_group, "end-of-document", self.action_end_of_document, None)
+        self.create_action(action_group, "search", self.action_search, None)
         self.insert_action_group("sourceview", action_group)
-        shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.shortcuts.sourceview)
-        shortcut_controller.props.propagation_phase = Gtk.PropagationPhase.CAPTURE
-        self.add_controller(shortcut_controller)
+        self.shortcut_controller = Gtk.ShortcutController.new_for_model(self.context.shortcuts.sourceview)
+        self.shortcut_controller.props.propagation_phase = Gtk.PropagationPhase.CAPTURE
+        self.add_controller(self.shortcut_controller)
 
         action_group = Gio.SimpleActionGroup.new()
         self.create_action(action_group, "next-item", self.action_form_next_item, None)
@@ -127,9 +132,9 @@ class HatchetSourceView(Adw.Bin):
             if self.blame_update_timeout > 0:
                 GLib.Source.remove(self.blame_update_timeout)
 
+            self.shortcut_controller.props.propagation_phase = Gtk.PropagationPhase.CAPTURE
             if self.form_shortcuts:
                 self.remove_controller(self.form_shortcuts)
-
 
         self.overlay_cursor = None
         self.buffer = None
@@ -139,6 +144,9 @@ class HatchetSourceView(Adw.Bin):
         self.blame_needs_update = False
         self.blame_update_routine = None
         self.blame_update_timeout = 0
+        self.search_picker = None
+        self.search_highlight_bounds = None
+        self.search_line_highlight_bounds = None
 
         self.form = None
         self.form_ordered = None
@@ -313,7 +321,17 @@ class HatchetSourceView(Adw.Bin):
     def action_cancel(self, action_name, params):
         if not self.sourceview:
             return
+
         self._deactivate_mark_region()
+
+        buffer = self.sourceview.props.buffer
+        mark = buffer.get_insert()
+        iter = buffer.get_iter_at_mark(mark)
+        self.sourceview.jump_to_iter(iter, 0.0, True, 0.5, 0.5)
+
+        self.paned.set_start_child(None)
+        self.search_picker = None
+        self._reset_search_highlight()
 
         toast_overlay = self.get_ancestor(Adw.ToastOverlay)
         if toast_overlay:
@@ -321,6 +339,9 @@ class HatchetSourceView(Adw.Bin):
 
     def action_prev_line(self, action_name, params):
         if not self.sourceview:
+            return
+        if self.search_picker:
+            self.search_picker.activate_action("picker.prev", None)
             return
         buffer = self.sourceview.props.buffer
         mark = buffer.get_insert()
@@ -331,6 +352,9 @@ class HatchetSourceView(Adw.Bin):
 
     def action_next_line(self, action_name, params):
         if not self.sourceview:
+            return
+        if self.search_picker:
+            self.search_picker.activate_action("picker.next", None)
             return
         buffer = self.sourceview.props.buffer
         mark = buffer.get_insert()
@@ -516,7 +540,7 @@ class HatchetSourceView(Adw.Bin):
             return
         buffer = self.sourceview.props.buffer
         insert = buffer.get_insert()
-        self.sourceview.scroll_to_mark(insert, 0.0, True, 0.0, 0.5)
+        self.sourceview.scroll_to_mark(insert, 0.0, True, 0.5, 0.5)
 
     def action_scroll_up(self, action_name, params):
         self._stable_half_page_scroll(-1)
@@ -562,6 +586,102 @@ class HatchetSourceView(Adw.Bin):
         iter = buffer.get_end_iter()
         buffer.place_cursor(iter)
         self.sourceview.jump_to_iter(iter, 0.0, False, 0.0, 0.0)
+
+    def action_search(self, action_name, params):
+        if not self.sourceview or self.search_picker:
+            return
+        buffer = self.sourceview.props.buffer
+        insert = buffer.get_insert()
+        insert_iter = buffer.get_iter_at_mark(insert)
+        insert_line = insert_iter.get_line()
+
+        lines = []
+        def append_line(line):
+            _, begin_line = buffer.get_iter_at_line(line)
+            if begin_line.get_char() == "\n":
+                text = ""
+            else:
+                end_line = begin_line.copy()
+                end_line.forward_to_line_end()
+                text = buffer.get_text(begin_line, end_line, False).strip()
+            lines.append(text)
+        for line in range(insert_line, buffer.get_line_count()):
+            append_line(line)
+        for line in range(0, insert_line):
+            append_line(line)
+
+        self.search_lines = lines
+        self.search_start_line = insert_line
+
+        model = Gtk.StringList.new(lines)
+        self.search_picker = HatchetPicker(
+            context=self.context,
+            for_model=model,
+            width_request=200,
+        )
+        self.search_picker.connect("selection-changed", self._search_picker_selection_changed_cb)
+        self.search_picker.connect("selection-made", self._search_picker_selection_made_cb)
+        self.paned.set_start_child(self.search_picker)
+
+    def _search_picker_selection_changed_cb(self, picker, idx):
+        buffer = self.sourceview.props.buffer
+
+        line = (self.search_start_line + idx) % len(self.search_lines)
+        self._jump_to_search(line, picker.get_search_text(), highlight=True)
+
+    def _search_picker_selection_made_cb(self, picker, item, idx):
+        buffer = self.sourceview.props.buffer
+
+        line = (self.search_start_line + idx) % len(self.search_lines)
+        self._jump_to_search(line, picker.get_search_text(), place_cursor=True)
+
+        self.paned.set_start_child(None)
+        self.search_picker = None
+
+    def _jump_to_search(self, line, text, place_cursor=False, highlight=False):
+        self._reset_search_highlight()
+        buffer = self.sourceview.props.buffer
+        _, iter = buffer.get_iter_at_line(line)
+        limit = iter.copy()
+        limit.forward_to_line_end()
+        result = iter.forward_search(text, Gtk.TextSearchFlags.TEXT_ONLY, limit)
+        if result:
+            start_iter, finish_iter = result
+        else:
+            start_iter = iter
+            finish_iter = limit
+
+        if place_cursor:
+            buffer.place_cursor(start_iter)
+        self.sourceview.jump_to_iter(start_iter, 0.0, True, 0.5, 0.5)
+
+        if highlight:
+            buffer.apply_tag_by_name("search-match", start_iter, finish_iter)
+            start_mark = buffer.create_mark(None, start_iter, False)
+            finish_mark = buffer.create_mark(None, finish_iter, True)
+            self.search_highlight_bounds = (start_mark, finish_mark)
+
+            buffer.apply_tag_by_name("search-line", iter, limit)
+            start_mark = buffer.create_mark(None, iter, False)
+            finish_mark = buffer.create_mark(None, limit, True)
+            self.search_line_highlight_bounds = (start_mark, finish_mark)
+
+    def _reset_search_highlight(self):
+        buffer = self.sourceview.props.buffer
+        for item in [
+            (self.search_highlight_bounds, "search-match"),
+            (self.search_line_highlight_bounds, "search-line"),
+        ]:
+            bounds, tag = item
+            if bounds:
+                start_mark, finish_mark = bounds
+                start_iter = buffer.get_iter_at_mark(start_mark)
+                finish_iter = buffer.get_iter_at_mark(finish_mark)
+                buffer.remove_tag_by_name(tag, start_iter, finish_iter)
+                buffer.delete_mark(start_mark)
+                buffer.delete_mark(finish_mark)
+        self.search_highlight_bounds = None
+        self.search_line_highlight_bounds = None
 
     def create_action(self, group, name, callback, params):
         if params:
@@ -649,8 +769,8 @@ class HatchetSourceView(Adw.Bin):
         if self.form_highlight_bounds:
             start_line, finish_line = self.form_highlight_bounds
             _, start_iter = buffer.get_iter_at_line(start_line)
-            _, end_iter = buffer.get_iter_at_line(finish_line)
-            buffer.remove_tag_by_name("form-selected", start_iter, end_iter)
+            _, finish_iter = buffer.get_iter_at_line(finish_line)
+            buffer.remove_tag_by_name("form-selected", start_iter, finish_iter)
             self.form_highlight_bounds = None
 
         if line >= len(self.form_lines):
@@ -705,6 +825,18 @@ class HatchetSourceView(Adw.Bin):
             foreground="black",
             background="goldenrod",
             weight=600,
+        )
+        self.buffer.create_tag(
+            "search-line",
+            foreground="black",
+            background="goldenrod",
+            weight=700,
+        )
+        self.buffer.create_tag(
+            "search-match",
+            background="black",
+            foreground="goldenrod",
+            scale=1.15,
         )
         self._style_sourceview()
         self.content.set_child(self.sourceview)

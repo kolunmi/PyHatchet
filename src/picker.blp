@@ -19,16 +19,13 @@ template $HatchetPicker: Adw.Bin {
       }
     }
 
-    Separator {
-      orientation: horizontal;
-    }
-
     ScrolledWindow {
       vexpand: true;
       propagate-natural-height: true;
 
       child: ListView list_view {
         model: SingleSelection selection {
+          notify::selected => $_selection_changed_cb();
         };
         factory: BuilderListItemFactory {
           template ListItem {
@@ -39,9 +36,6 @@ template $HatchetPicker: Adw.Bin {
           }
         };
         activate => $_activated_cb();
-        styles [
-          "navigation-sidebar",
-        ]
       };
     }
   };

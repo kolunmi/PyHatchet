@@ -4,6 +4,14 @@ using Adw 1;
 template $HatchetSourceView: Adw.Bin {
   styles ["htsourceview"]
 
-  child: ScrolledWindow content {
+  child: Paned paned {
+    orientation: horizontal;
+    resize-start-child: false;
+    shrink-start-child: false;
+
+    end-child: Overlay overlay {
+      child: ScrolledWindow content {
+      };
+    };
   };
 }
